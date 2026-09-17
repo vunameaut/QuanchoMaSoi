@@ -78,6 +78,9 @@
     // Auto Night Sequence State
     isAutoNightRunning: false,
     nightStepInterval: null,
+    activeNightRoleKey: null,
+    finishCurrentNightStep: null,
+    nightStepCompletedEarly: false,
 
     // Morning Discussion Timer State
     discussionTotalSeconds: 180,
@@ -204,6 +207,7 @@
   const clientSeerRevealBox = document.getElementById('clientSeerRevealBox');
   const clientSeerTargetName = document.getElementById('clientSeerTargetName');
   const clientSeerVerdict = document.getElementById('clientSeerVerdict');
+  const clientSeerDoneBtn = document.getElementById('clientSeerDoneBtn');
   const clientWitchBox = document.getElementById('clientWitchBox');
   const clientWitchVictimName = document.getElementById('clientWitchVictimName');
   const clientWitchHealBtn = document.getElementById('clientWitchHealBtn');
@@ -546,6 +550,9 @@
     clientJoinRoomSubmitBtn.addEventListener('click', handleClientJoinRoomSubmit);
     toggleSecretVisibilityBtn.addEventListener('click', toggleClientSecretVisibility);
     clientConfirmActionBtn.addEventListener('click', clientConfirmNightDone);
+    if (clientSeerDoneBtn) {
+      clientSeerDoneBtn.addEventListener('click', clientConfirmNightDone);
+    }
 
     if (clientConfirmChosenRoleBtn) {
       clientConfirmChosenRoleBtn.addEventListener('click', handleClientConfirmChosenRole);
@@ -554,7 +561,7 @@
     if (clientWitchHealBtn) {
       clientWitchHealBtn.addEventListener('click', () => {
         clientWitchHealBtn.classList.add('selected');
-        window.networkManager.sendNightActionToHost({ role: 'witch', witchHeal: true });
+        window.networkManager.sendNightActionToHost({ role: 'witch', witchHeal: true, isDone: true });
         clientConfirmNightDone();
       });
     }
@@ -571,7 +578,7 @@
           btn.addEventListener('click', () => {
             clientWitchPoisonList.querySelectorAll('.night-target-btn').forEach(b => b.classList.remove('selected'));
             btn.classList.add('selected');
-            window.networkManager.sendNightActionToHost({ role: 'witch', witchPoisonTargetId: target.id });
+            window.networkManager.sendNightActionToHost({ role: 'witch', witchPoisonTargetId: target.id, isDone: true });
             clientConfirmNightDone();
           });
           clientWitchPoisonList.appendChild(btn);
@@ -581,7 +588,7 @@
 
     if (clientWitchSkipBtn) {
       clientWitchSkipBtn.addEventListener('click', () => {
-        window.networkManager.sendNightActionToHost({ role: 'witch', witchHeal: false });
+        window.networkManager.sendNightActionToHost({ role: 'witch', witchHeal: false, isDone: true });
         clientConfirmNightDone();
       });
     }
@@ -1400,10 +1407,22 @@
         if (roleKey === 'werewolf') {
           // Báo cho Host và đồng bộ vote cho các con sói khác
           window.networkManager.sendWolfVoteToHost(target.id, target.name);
+          const aliveWolves = state.players.filter(p => p.role === 'werewolf' && p.isAlive);
+          const isSingleWolf = aliveWolves.length <= 1;
+
           window.networkManager.sendNightActionToHost({
             role: 'werewolf',
-            targetId: target.id
+            targetId: target.id,
+            isDone: isSingleWolf
           });
+
+          if (isSingleWolf) {
+            clientTargetsGrid.querySelectorAll('.night-target-btn').forEach(b => b.style.pointerEvents = 'none');
+            btn.innerHTML = `<span>🐺 Đã chọn cắn: ${target.name}</span>`;
+            setTimeout(() => {
+              clientConfirmNightDone();
+            }, 600);
+          }
         } else if (roleKey === 'seer') {
           clientTargetsGrid.style.display = 'none';
           clientSeerRevealBox.style.display = 'flex';
@@ -1416,10 +1435,22 @@
             role: 'seer',
             targetId: target.id
           });
+        } else if (roleKey === 'guard') {
+          window.networkManager.sendNightActionToHost({
+            role: 'guard',
+            targetId: target.id,
+            isDone: true
+          });
+          clientTargetsGrid.querySelectorAll('.night-target-btn').forEach(b => b.style.pointerEvents = 'none');
+          btn.innerHTML = `<span>🛡️ Đã chọn bảo vệ: ${target.name}</span>`;
+          setTimeout(() => {
+            clientConfirmNightDone();
+          }, 600);
         } else {
           window.networkManager.sendNightActionToHost({
             role: roleKey,
-            targetId: target.id
+            targetId: target.id,
+            isDone: true
           });
         }
       });
@@ -1435,6 +1466,14 @@
     }
     clientWakingState.style.display = 'none';
     clientSleepingState.style.display = 'block';
+
+    // Báo cho Host biết người chơi này đã hoàn tất hành động và nhắm mắt đi ngủ
+    if (state.gameMode === 'multi_client' && window.networkManager) {
+      window.networkManager.sendNightActionToHost({
+        role: state.myClientData.role,
+        isDone: true
+      });
+    }
   }
 
   function handleClientMorningSync(syncData) {
@@ -1464,13 +1503,35 @@
   }
 
   function handleHostReceivedNightAction(actionData) {
-    const { role, targetId, witchHeal, witchPoisonTargetId } = actionData;
-    if (role === 'werewolf') state.nightPicks.attackedPlayerId = targetId;
-    if (role === 'guard') state.nightPicks.protectedPlayerId = targetId;
-    if (role === 'seer') state.nightPicks.seerCheckedPlayerId = targetId;
+    const { role, targetId, witchHeal, witchPoisonTargetId, isDone } = actionData;
+    if (role === 'werewolf' && targetId) state.nightPicks.attackedPlayerId = targetId;
+    if (role === 'guard' && targetId) state.nightPicks.protectedPlayerId = targetId;
+    if (role === 'seer' && targetId) state.nightPicks.seerCheckedPlayerId = targetId;
     if (role === 'witch') {
       if (witchHeal !== undefined) state.nightPicks.witchHealed = witchHeal;
       if (witchPoisonTargetId !== undefined) state.nightPicks.witchPoisonedPlayerId = witchPoisonTargetId;
+    }
+
+    // Nếu Host đang ở bước đêm của chính vai trò này, kết thúc sớm để không phải chờ hết đồng hồ đếm ngược!
+    if (state.activeNightRoleKey === role && typeof state.finishCurrentNightStep === 'function') {
+      if (role === 'guard') {
+        if (targetId || isDone) {
+          state.finishCurrentNightStep();
+        }
+      } else if (role === 'witch') {
+        if (witchHeal !== undefined || witchPoisonTargetId !== undefined || isDone) {
+          state.finishCurrentNightStep();
+        }
+      } else if (role === 'seer') {
+        if (isDone) {
+          state.finishCurrentNightStep();
+        }
+      } else if (role === 'werewolf') {
+        const aliveWolves = state.players.filter(p => p.role === 'werewolf' && p.isAlive);
+        if (aliveWolves.length <= 1 || isDone) {
+          state.finishCurrentNightStep();
+        }
+      }
     }
   }
 
@@ -2027,12 +2088,16 @@
     }
   }
 
-  function runNightRoleStep({ title, icon, audioText, instruction, duration, isSeer = false, isWitch = false, onAction }) {
+  function runNightRoleStep({ roleKey, title, icon, audioText, instruction, duration, isSeer = false, isWitch = false, onAction }) {
     return new Promise((resolve) => {
+      state.activeNightRoleKey = roleKey;
+      state.nightStepCompletedEarly = false;
+
       // Nếu là chế độ Multi-Device Host, chỉ hiển thị thông báo tiến độ, máy con sẽ tự bấm!
       nightRoleIcon.textContent = icon;
       nightRoleTitle.textContent = title;
       nightInstructionText.textContent = instruction;
+      nightStepTimer.style.color = "";
       seerResultBox.style.display = 'none';
       witchControlsBox.style.display = 'none';
       nightTargetsGrid.style.display = 'grid';
@@ -2114,10 +2179,31 @@
       state.nightStepInterval = setInterval(countdown, 1000);
 
       const cleanUpAndDone = () => {
-        clearInterval(state.nightStepInterval);
+        if (state.nightStepInterval) clearInterval(state.nightStepInterval);
         state.nightStepInterval = null;
+        state.activeNightRoleKey = null;
+        state.finishCurrentNightStep = null;
+        nightStepTimer.style.color = "";
         nightConfirmDoneBtn.onclick = null;
         resolve();
+      };
+
+      state.finishCurrentNightStep = () => {
+        if (state.nightStepCompletedEarly) return;
+        state.nightStepCompletedEarly = true;
+
+        if (state.nightStepInterval) {
+          clearInterval(state.nightStepInterval);
+          state.nightStepInterval = null;
+        }
+
+        nightStepTimer.textContent = "✅ Đã chọn xong!";
+        nightStepTimer.style.color = "#4ade80";
+        nightInstructionText.textContent = `✅ Người chơi đã hoàn tất lựa chọn trên điện thoại. Đang chuyển tiếp...`;
+
+        setTimeout(() => {
+          cleanUpAndDone();
+        }, 700);
       };
 
       nightConfirmDoneBtn.onclick = cleanUpAndDone;
