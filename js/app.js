@@ -54,7 +54,13 @@
     hostClientPicks: {}, // { [playerId]: roleKey }
     clientSelectedRole: null,
     clientStepCountdownTimer: null,
-    clientStepRemainingSec: 15,
+    clientStepRemainingSec: 50,
+    clientNightAction: {
+      role: null,
+      targetId: null,
+      witchHeal: null,
+      witchPoisonTargetId: null
+    },
     myClientData: {
       id: null,
       name: '',
@@ -560,36 +566,49 @@
 
     if (clientWitchHealBtn) {
       clientWitchHealBtn.addEventListener('click', () => {
-        clientWitchHealBtn.classList.add('selected');
-        window.networkManager.sendNightActionToHost({ role: 'witch', witchHeal: true, isDone: true });
-        clientConfirmNightDone();
+        clientWitchHealBtn.classList.toggle('selected');
+        const isHealing = clientWitchHealBtn.classList.contains('selected');
+        state.clientNightAction.witchHeal = isHealing;
+        clientConfirmActionBtn.disabled = false;
+        clientConfirmActionBtn.innerHTML = isHealing 
+          ? `<span>🔒 XÁC NHẬN DÙNG BÌNH CỨU (ĐI NGỦ)</span>` 
+          : `<span>🔒 XÁC NHẬN HÀNH ĐỘNG XONG</span>`;
       });
     }
 
     if (clientWitchPoisonBtn) {
       clientWitchPoisonBtn.addEventListener('click', () => {
-        clientWitchPoisonList.style.display = 'grid';
-        clientWitchPoisonList.innerHTML = '';
-        state.players.filter(p => p.isAlive).forEach(target => {
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = 'night-target-btn';
-          btn.innerHTML = `<span>🧪 ${target.name}</span>`;
-          btn.addEventListener('click', () => {
-            clientWitchPoisonList.querySelectorAll('.night-target-btn').forEach(b => b.classList.remove('selected'));
-            btn.classList.add('selected');
-            window.networkManager.sendNightActionToHost({ role: 'witch', witchPoisonTargetId: target.id, isDone: true });
-            clientConfirmNightDone();
+        const isShowing = clientWitchPoisonList.style.display === 'grid';
+        clientWitchPoisonList.style.display = isShowing ? 'none' : 'grid';
+        if (!isShowing) {
+          clientWitchPoisonList.innerHTML = '';
+          state.players.filter(p => p.isAlive).forEach(target => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'night-target-btn';
+            btn.innerHTML = `<span>🧪 ${target.name}</span>`;
+            btn.addEventListener('click', () => {
+              clientWitchPoisonList.querySelectorAll('.night-target-btn').forEach(b => b.classList.remove('selected'));
+              btn.classList.add('selected');
+              state.clientNightAction.witchPoisonTargetId = target.id;
+              clientConfirmActionBtn.disabled = false;
+              clientConfirmActionBtn.innerHTML = `<span>🔒 XÁC NHẬN ĐẦU ĐỘC ${target.name.toUpperCase()} (ĐI NGỦ)</span>`;
+            });
+            clientWitchPoisonList.appendChild(btn);
           });
-          clientWitchPoisonList.appendChild(btn);
-        });
+        }
       });
     }
 
     if (clientWitchSkipBtn) {
       clientWitchSkipBtn.addEventListener('click', () => {
-        window.networkManager.sendNightActionToHost({ role: 'witch', witchHeal: false, isDone: true });
-        clientConfirmNightDone();
+        clientWitchHealBtn.classList.remove('selected');
+        clientWitchPoisonList.style.display = 'none';
+        clientWitchPoisonList.querySelectorAll('.night-target-btn').forEach(b => b.classList.remove('selected'));
+        state.clientNightAction.witchHeal = false;
+        state.clientNightAction.witchPoisonTargetId = null;
+        clientConfirmActionBtn.disabled = false;
+        clientConfirmActionBtn.innerHTML = `<span>🔒 XÁC NHẬN BỎ QUA LƯỢT (ĐI NGỦ)</span>`;
       });
     }
 
@@ -1290,7 +1309,7 @@
   }
 
   function handleClientNightStep(stepData) {
-    const { activeRole, victimName, aliveTargets, duration = 15, wolfMembers = [] } = stepData;
+    const { activeRole, victimName, aliveTargets, duration = 50, wolfMembers = [] } = stepData;
     const myRole = state.myClientData.role;
     const isAlive = state.myClientData.isAlive;
 
@@ -1305,6 +1324,15 @@
       if (navigator.vibrate) {
         navigator.vibrate([200, 100, 200]);
       }
+
+      state.clientNightAction = {
+        role: activeRole,
+        targetId: null,
+        witchHeal: null,
+        witchPoisonTargetId: null
+      };
+      clientConfirmActionBtn.disabled = true;
+      clientConfirmActionBtn.innerHTML = `<span>🔒 XÁC NHẬN HÀNH ĐỘNG XONG</span>`;
 
       clientSleepingState.style.display = 'none';
       clientWakingState.style.display = 'block';
@@ -1403,26 +1431,18 @@
       btn.addEventListener('click', () => {
         clientTargetsGrid.querySelectorAll('.night-target-btn').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
+        state.clientNightAction.targetId = target.id;
+        clientConfirmActionBtn.disabled = false;
 
         if (roleKey === 'werewolf') {
-          // Báo cho Host và đồng bộ vote cho các con sói khác
+          // Báo cho Host và đồng bộ vote cho các con sói khác (chưa kết thúc, isDone = false)
           window.networkManager.sendWolfVoteToHost(target.id, target.name);
-          const aliveWolves = state.players.filter(p => p.role === 'werewolf' && p.isAlive);
-          const isSingleWolf = aliveWolves.length <= 1;
-
           window.networkManager.sendNightActionToHost({
             role: 'werewolf',
             targetId: target.id,
-            isDone: isSingleWolf
+            isDone: false
           });
-
-          if (isSingleWolf) {
-            clientTargetsGrid.querySelectorAll('.night-target-btn').forEach(b => b.style.pointerEvents = 'none');
-            btn.innerHTML = `<span>🐺 Đã chọn cắn: ${target.name}</span>`;
-            setTimeout(() => {
-              clientConfirmNightDone();
-            }, 600);
-          }
+          clientConfirmActionBtn.innerHTML = `<span>🔒 XÁC NHẬN CẮN ${target.name.toUpperCase()} (ĐI NGỦ)</span>`;
         } else if (roleKey === 'seer') {
           clientTargetsGrid.style.display = 'none';
           clientSeerRevealBox.style.display = 'flex';
@@ -1433,25 +1453,24 @@
 
           window.networkManager.sendNightActionToHost({
             role: 'seer',
-            targetId: target.id
+            targetId: target.id,
+            isDone: false
           });
+          clientConfirmActionBtn.innerHTML = `<span>🙈 ĐÃ XEM XONG (ĐI NGỦ)</span>`;
         } else if (roleKey === 'guard') {
           window.networkManager.sendNightActionToHost({
             role: 'guard',
             targetId: target.id,
-            isDone: true
+            isDone: false
           });
-          clientTargetsGrid.querySelectorAll('.night-target-btn').forEach(b => b.style.pointerEvents = 'none');
-          btn.innerHTML = `<span>🛡️ Đã chọn bảo vệ: ${target.name}</span>`;
-          setTimeout(() => {
-            clientConfirmNightDone();
-          }, 600);
+          clientConfirmActionBtn.innerHTML = `<span>🔒 XÁC NHẬN BẢO VỆ ${target.name.toUpperCase()} (ĐI NGỦ)</span>`;
         } else {
           window.networkManager.sendNightActionToHost({
             role: roleKey,
             targetId: target.id,
-            isDone: true
+            isDone: false
           });
+          clientConfirmActionBtn.innerHTML = `<span>🔒 XÁC NHẬN HÀNH ĐỘNG XONG (ĐI NGỦ)</span>`;
         }
       });
 
@@ -1467,10 +1486,13 @@
     clientWakingState.style.display = 'none';
     clientSleepingState.style.display = 'block';
 
-    // Báo cho Host biết người chơi này đã hoàn tất hành động và nhắm mắt đi ngủ
+    // Báo cho Host biết người chơi này đã CHÍNH THỨC ẤN XÁC NHẬN và đi ngủ
     if (state.gameMode === 'multi_client' && window.networkManager) {
       window.networkManager.sendNightActionToHost({
         role: state.myClientData.role,
+        targetId: state.clientNightAction?.targetId || null,
+        witchHeal: state.clientNightAction?.witchHeal,
+        witchPoisonTargetId: state.clientNightAction?.witchPoisonTargetId || null,
         isDone: true
       });
     }
@@ -1512,26 +1534,9 @@
       if (witchPoisonTargetId !== undefined) state.nightPicks.witchPoisonedPlayerId = witchPoisonTargetId;
     }
 
-    // Nếu Host đang ở bước đêm của chính vai trò này, kết thúc sớm để không phải chờ hết đồng hồ đếm ngược!
-    if (state.activeNightRoleKey === role && typeof state.finishCurrentNightStep === 'function') {
-      if (role === 'guard') {
-        if (targetId || isDone) {
-          state.finishCurrentNightStep();
-        }
-      } else if (role === 'witch') {
-        if (witchHeal !== undefined || witchPoisonTargetId !== undefined || isDone) {
-          state.finishCurrentNightStep();
-        }
-      } else if (role === 'seer') {
-        if (isDone) {
-          state.finishCurrentNightStep();
-        }
-      } else if (role === 'werewolf') {
-        const aliveWolves = state.players.filter(p => p.role === 'werewolf' && p.isAlive);
-        if (aliveWolves.length <= 1 || isDone) {
-          state.finishCurrentNightStep();
-        }
-      }
+    // CHỈ KHI NGƯỜI CHƠI ĐÃ ẤN XÁC NHẬN (isDone === true) MỚI TÍNH LÀ CHỌN XONG ĐỂ KẾT THÚC SỚM!
+    if (isDone && state.activeNightRoleKey === role && typeof state.finishCurrentNightStep === 'function') {
+      state.finishCurrentNightStep();
     }
   }
 
@@ -1967,14 +1972,14 @@
     // BƯỚC 2: BẢO VỆ
     const hasGuardAlive = state.players.some(p => p.role === 'guard' && p.isAlive);
     if (hasGuardAlive) {
-      broadcastNightStepToClients('guard', { duration: 15, title: 'BẢO VỆ THỨC DẬY' });
+      broadcastNightStepToClients('guard', { duration: 50, title: 'BẢO VỆ THỨC DẬY' });
       await runNightRoleStep({
         roleKey: 'guard',
         title: 'BẢO VỆ THỨC DẬY',
         icon: '🛡️',
         audioText: 'Bảo vệ ơi thức dậy. Bảo vệ muốn cứu ai đêm nay?',
-        instruction: 'Bảo vệ hãy chạm vào người bạn muốn bảo vệ:',
-        duration: 15,
+        instruction: 'Bảo vệ hãy chạm vào người bạn muốn bảo vệ và ấn Xác nhận:',
+        duration: 50,
         onAction: (targetId) => {
           state.nightPicks.protectedPlayerId = targetId;
         }
@@ -1986,14 +1991,14 @@
     // BƯỚC 3: MA SÓI
     const hasWolfAlive = state.players.some(p => p.role === 'werewolf' && p.isAlive);
     if (hasWolfAlive) {
-      broadcastNightStepToClients('werewolf', { duration: 20, title: 'MA SÓI THỨC DẬY' });
+      broadcastNightStepToClients('werewolf', { duration: 50, title: 'MA SÓI THỨC DẬY' });
       await runNightRoleStep({
         roleKey: 'werewolf',
         title: 'MA SÓI THỨC DẬY',
         icon: '🐺',
         audioText: 'Ma sói ơi hãy thức dậy. Sói muốn giết ai đêm nay?',
-        instruction: 'Ma Sói hãy cùng thống nhất và chạm vào con mồi:',
-        duration: 20,
+        instruction: 'Ma Sói hãy cùng thống nhất chạm con mồi và ấn Xác nhận:',
+        duration: 50,
         onAction: (targetId) => {
           state.nightPicks.attackedPlayerId = targetId;
         }
@@ -2005,14 +2010,14 @@
     // BƯỚC 4: TIÊN TRI
     const hasSeerAlive = state.players.some(p => p.role === 'seer' && p.isAlive);
     if (hasSeerAlive) {
-      broadcastNightStepToClients('seer', { duration: 18, title: 'TIÊN TRI THỨC DẬY' });
+      broadcastNightStepToClients('seer', { duration: 50, title: 'TIÊN TRI THỨC DẬY' });
       await runNightRoleStep({
         roleKey: 'seer',
         title: 'TIÊN TRI THỨC DẬY',
         icon: '🔮',
         audioText: 'Tiên tri ơi hãy thức dậy. Tiên tri muốn soi ai?',
-        instruction: 'Tiên tri hãy chạm vào 1 người để soi danh tính:',
-        duration: 18,
+        instruction: 'Tiên tri hãy chạm vào 1 người để soi danh tính và ấn Xác nhận:',
+        duration: 50,
         isSeer: true
       });
       await window.audioManager.speakRole('seer_sleep');
@@ -2023,15 +2028,15 @@
     const hasWitchAlive = state.players.some(p => p.role === 'witch' && p.isAlive);
     if (hasWitchAlive) {
       const victim = state.players.find(p => p.id === state.nightPicks.attackedPlayerId);
-      broadcastNightStepToClients('witch', { duration: 20, title: 'PHÙ THỦY THỨC DẬY', victimName: victim ? victim.name : null });
+      broadcastNightStepToClients('witch', { duration: 50, title: 'PHÙ THỦY THỨC DẬY', victimName: victim ? victim.name : null });
 
       await runNightRoleStep({
         roleKey: 'witch',
         title: 'PHÙ THỦY THỨC DẬY',
         icon: '🧪',
         audioText: 'Phù thủy ơi thức dậy.',
-        instruction: 'Phù thủy hãy quyết định dùng bình cứu hoặc bình độc:',
-        duration: 20,
+        instruction: 'Phù thủy hãy quyết định bình cứu hoặc độc và ấn Xác nhận:',
+        duration: 50,
         isWitch: true
       });
       await window.audioManager.speakRole('witch_sleep');
@@ -2077,7 +2082,7 @@
         data: {
           activeRole: roleKey,
           stepTitle: options.title || '',
-          duration: options.duration || 15,
+          duration: options.duration || 50,
           victimName: options.victimName || null,
           aliveTargets: aliveTargets,
           wolfMembers: wolfMembers,
