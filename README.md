@@ -46,6 +46,13 @@
 - Vòng đồng hồ chuyển sang **ĐỎ RỰC** và phát âm thanh "Tích... tắc..." đếm ngược ở 10 giây cuối.
 - Quản trò tự động cất giọng nhắc nhở biểu quyết khi hết giờ.
 
+### 6. 📱 Chế Độ Phòng Chơi Đa Thiết Bị (Multi-Device Room P2P)
+- **Mỗi người một máy**: Không cần phải chuyền 1 điện thoại qua lại nữa! Mọi người chơi cầm điện thoại cá nhân của mình để xem vai trò và ra kỹ năng bí mật ngay tại chỗ.
+- **Tạo phòng linh hoạt**: Đặt mã phòng tuỳ ý, có thể **đặt mật khẩu phòng** hoặc không đặt mật khẩu.
+- **Vào phòng siêu tốc**: Quét mã **QR Code** trực tiếp trên màn hình máy Quản Trò (Host) hoặc nhập mã phòng.
+- **Kết nối P2P WebRTC / Offline BroadcastChannel**: Hoạt động mượt mà không cần server backend phức tạp. Khi chơi offline cùng trình duyệt/mạng nội bộ có fallback kênh BroadcastChannel.
+- **Rung phản hồi bí mật (Haptic Vibration)**: Khi đến lượt chức năng của bạn trong đêm, điện thoại bạn sẽ tự động rung nhẹ báo thức mà không ai xung quanh hay biết.
+
 ---
 
 ## 🚀 Hướng Dẫn Sử Dụng
@@ -58,7 +65,9 @@
    ```bash
    python -m http.server 8080
    ```
-3. Truy cập: `http://localhost:8080` và bắt đầu ván chơi cùng bạn bè!
+3. Truy cập: `http://localhost:8080`
+   - **Chế độ 1 Máy (Single-Device)**: 1 máy làm quản trò và chuyền máy bí mật để đăng ký role hoặc chọn đêm.
+   - **Chế độ Đa Thiết Bị (Multi-Device)**: 1 máy lớn (iPad/Laptop/Điện thoại) làm Quản Trò Tạo Phòng $\rightarrow$ các bạn còn lại dùng điện thoại quét mã QR/nhập mã phòng để vào chơi.
 
 ---
 

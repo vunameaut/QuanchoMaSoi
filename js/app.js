@@ -1,8 +1,8 @@
 /**
  * Quản Trò Ma Sói - Ứng Dụng Web SPA (Application Controller)
- * Hỗ trợ Đăng ký vai trò bí mật chuyền tay (Anti-Peeking),
- * Chuỗi điều hành Đêm tự động 100%, thông báo người được Bảo vệ / Cứu / Hy sinh,
- * Cài đặt Giọng đọc & Nhạc nền đa dạng, và Đồng hồ đếm ngược Họp ban ngày toàn màn hình.
+ * Hỗ trợ đồng thời:
+ * 1. Chế độ Chơi Trên 1 Máy (Single-Device / Chuyền Tay)
+ * 2. Chế độ Phòng Chơi Đa Thiết Bị (Multi-Device P2P / Mỗi người 1 máy)
  */
 
 (function () {
@@ -20,6 +20,7 @@
 
   // State Management
   const state = {
+    gameMode: 'single', // 'single' | 'multi_host' | 'multi_client'
     playerCount: 6,
     roles: {
       werewolf: 1,
@@ -29,14 +30,23 @@
       hunter: 0,
       villager: 2
     },
-    players: [], // [{ id, name, role, isAlive }]
+    players: [], // [{ id, name, role, isAlive, peerKey }]
     currentNight: 1,
-    currentPhase: 'setup', // 'setup' | 'passRole' | 'gameplay'
+    currentPhase: 'setup',
     
-    // Pass Role Phase State
+    // Pass Role Phase State (Chơi 1 máy)
     passIndex: 0,
     isRandomAssignedMode: false,
     selectedRoleForPass: null,
+
+    // Multi-Device Host & Client State
+    connectedClients: [],
+    myClientData: {
+      id: null,
+      name: '',
+      role: null,
+      isAlive: true
+    },
 
     // Witch Potions State
     witchHealUsed: false,
@@ -56,7 +66,7 @@
     nightStepInterval: null,
 
     // Morning Discussion Timer State
-    discussionTotalSeconds: 180, // Default 3 mins
+    discussionTotalSeconds: 180,
     discussionRemainingSeconds: 180,
     isTimerRunning: false,
     timerInterval: null
@@ -68,11 +78,16 @@
     "Dorian", "Silvia", "Lancelot", "Cedric", "Rowan"
   ];
 
-  // DOM Elements - Setup Phase
+  // DOM Elements - Mode Nav
+  const modeSingleDeviceBtn = document.getElementById('modeSingleDeviceBtn');
+  const modeMultiDeviceBtn = document.getElementById('modeMultiDeviceBtn');
   const setupPhaseEl = document.getElementById('setupPhase');
+  const multiDeviceLobbyPhaseEl = document.getElementById('multiDeviceLobbyPhase');
   const passRolePhaseEl = document.getElementById('passRolePhase');
   const gameplayPhaseEl = document.getElementById('gameplayPhase');
-  
+  const clientPlayerPhaseEl = document.getElementById('clientPlayerPhase');
+
+  // DOM Elements - Setup Phase (1 Máy)
   const playerCountInput = document.getElementById('playerCountInput');
   const decreasePlayerBtn = document.getElementById('decreasePlayerBtn');
   const increasePlayerBtn = document.getElementById('increasePlayerBtn');
@@ -85,7 +100,66 @@
   const validationWarningEl = document.getElementById('validationWarning');
   const startGameBtn = document.getElementById('startGameBtn');
 
-  // DOM Elements - Pass Role Phase
+  // DOM Elements - Multi-Device Lobby
+  const tabCreateRoomBtn = document.getElementById('tabCreateRoomBtn');
+  const tabJoinRoomBtn = document.getElementById('tabJoinRoomBtn');
+  const hostRoomCreationView = document.getElementById('hostRoomCreationView');
+  const hostActiveLobbyView = document.getElementById('hostActiveLobbyView');
+  const clientJoinRoomView = document.getElementById('clientJoinRoomView');
+  
+  const hostRoomCodeInput = document.getElementById('hostRoomCodeInput');
+  const generateRandomRoomCodeBtn = document.getElementById('generateRandomRoomCodeBtn');
+  const enablePasswordCheckbox = document.getElementById('enablePasswordCheckbox');
+  const hostPasswordInput = document.getElementById('hostPasswordInput');
+  const hostCreateRoomSubmitBtn = document.getElementById('hostCreateRoomSubmitBtn');
+
+  const displayActiveRoomCode = document.getElementById('displayActiveRoomCode');
+  const displayRoomPassBadge = document.getElementById('displayRoomPassBadge');
+  const roomQrCanvas = document.getElementById('roomQrCanvas');
+  const shareRoomLinkInput = document.getElementById('shareRoomLinkInput');
+  const copyShareLinkBtn = document.getElementById('copyShareLinkBtn');
+  const connectedCountBadge = document.getElementById('connectedCountBadge');
+  const connectedPlayersGrid = document.getElementById('connectedPlayersGrid');
+  const hostTotalRolesCount = document.getElementById('hostTotalRolesCount');
+  const hostConnectedTarget = document.getElementById('hostConnectedTarget');
+  const hostRoleValidationMsg = document.getElementById('hostRoleValidationMsg');
+  const hostStartGameMultiBtn = document.getElementById('hostStartGameMultiBtn');
+
+  const clientRoomCodeInput = document.getElementById('clientRoomCodeInput');
+  const clientPlayerNameInput = document.getElementById('clientPlayerNameInput');
+  const clientPasswordInput = document.getElementById('clientPasswordInput');
+  const clientJoinRoomSubmitBtn = document.getElementById('clientJoinRoomSubmitBtn');
+
+  // DOM Elements - Client Player View
+  const clientAvatarDisplay = document.getElementById('clientAvatarDisplay');
+  const clientDisplayName = document.getElementById('clientDisplayName');
+  const clientSeatBadge = document.getElementById('clientSeatBadge');
+  const clientLifeBadge = document.getElementById('clientLifeBadge');
+  const toggleSecretVisibilityBtn = document.getElementById('toggleSecretVisibilityBtn');
+  const clientSecretRoleCard = document.getElementById('clientSecretRoleCard');
+  const clientRoleIcon = document.getElementById('clientRoleIcon');
+  const clientRoleName = document.getElementById('clientRoleName');
+  const clientRoleTeam = document.getElementById('clientRoleTeam');
+  const clientRoleDesc = document.getElementById('clientRoleDesc');
+  const clientTeammatesInfo = document.getElementById('clientTeammatesInfo');
+  
+  const clientSleepingState = document.getElementById('clientSleepingState');
+  const clientWakingState = document.getElementById('clientWakingState');
+  const clientWakeTitle = document.getElementById('clientWakeTitle');
+  const clientWakeInstruction = document.getElementById('clientWakeInstruction');
+  const clientTargetsGrid = document.getElementById('clientTargetsGrid');
+  const clientSeerRevealBox = document.getElementById('clientSeerRevealBox');
+  const clientSeerTargetName = document.getElementById('clientSeerTargetName');
+  const clientSeerVerdict = document.getElementById('clientSeerVerdict');
+  const clientWitchBox = document.getElementById('clientWitchBox');
+  const clientWitchVictimName = document.getElementById('clientWitchVictimName');
+  const clientWitchHealBtn = document.getElementById('clientWitchHealBtn');
+  const clientWitchPoisonBtn = document.getElementById('clientWitchPoisonBtn');
+  const clientWitchPoisonList = document.getElementById('clientWitchPoisonList');
+  const clientConfirmActionBtn = document.getElementById('clientConfirmActionBtn');
+  const clientPlayersOverviewList = document.getElementById('clientPlayersOverviewList');
+
+  // DOM Elements - Pass Role Phase (Chơi 1 máy)
   const passProgressCounter = document.getElementById('passProgressCounter');
   const randomAssignAllBtn = document.getElementById('randomAssignAllBtn');
   const passLockScreen = document.getElementById('passLockScreen');
@@ -106,12 +180,10 @@
   const nightCountBadge = document.getElementById('nightCountBadge');
   const aliveCountBadge = document.getElementById('aliveCountBadge');
   const micStatusIndicator = document.getElementById('micStatusIndicator');
-  
   const voiceSelect = document.getElementById('voiceSelect');
   const voicePitchSelect = document.getElementById('voicePitchSelect');
   const ambientTrackSelect = document.getElementById('ambientTrackSelect');
   const ambientVolume = document.getElementById('ambientVolume');
-  
   const ambientToggleBtn = document.getElementById('ambientToggleBtn');
   const ambientLabel = document.getElementById('ambientLabel');
   const speechPauseResumeBtn = document.getElementById('speechPauseResumeBtn');
@@ -120,7 +192,6 @@
   const speechStopBtn = document.getElementById('speechStopBtn');
   const soundWaveAnimation = document.getElementById('soundWaveAnimation');
   const liveSubtitle = document.getElementById('liveSubtitle');
-  
   const startAutoNightBtn = document.getElementById('startAutoNightBtn');
   const openMorningTimerBtn = document.getElementById('openMorningTimerBtn');
   const morningRecapBanner = document.getElementById('morningRecapBanner');
@@ -133,7 +204,7 @@
   const gameLogContent = document.getElementById('gameLogContent');
   const clearLogBtn = document.getElementById('clearLogBtn');
 
-  // DOM Elements - Night Interactive Overlay
+  // DOM Elements - Night Overlay
   const nightInteractiveOverlay = document.getElementById('nightInteractiveOverlay');
   const nightRoleIcon = document.getElementById('nightRoleIcon');
   const nightRoleTitle = document.getElementById('nightRoleTitle');
@@ -170,21 +241,118 @@
   function init() {
     setupEventListeners();
     setupAudioCallbacks();
+    setupNetworkListeners();
     initVoiceDropdown();
     renderPlayerInputs();
     updateRoleCountersUI();
     validateSetupForm();
+    checkUrlQueryParams();
   }
 
   /**
-   * Khởi tạo và nạp danh sách Giọng đọc vào Dropdown
+   * Tự động kiểm tra URL nếu có ?room=XYZ để tự chuyển sang tab Vào Phòng
+   */
+  function checkUrlQueryParams() {
+    const params = new URLSearchParams(window.location.search);
+    const roomParam = params.get('room');
+    if (roomParam) {
+      switchToMultiDeviceMode();
+      showJoinRoomTab();
+      clientRoomCodeInput.value = roomParam.toUpperCase();
+    }
+  }
+
+  function setupNetworkListeners() {
+    if (!window.networkManager) return;
+
+    // Khi người chơi mới vào phòng (Host nhận)
+    window.networkManager.on('onPlayerJoined', (data) => {
+      if (state.gameMode === 'multi_host') {
+        renderConnectedPlayersGrid(data.clientsList || []);
+        validateHostRolesMulti();
+      }
+    });
+
+    // Khi người chơi rời phòng (Host nhận)
+    window.networkManager.on('onPlayerLeft', () => {
+      if (state.gameMode === 'multi_host') {
+        const list = Object.values(window.networkManager.clients).map(c => ({ id: c.id, name: c.name }));
+        renderConnectedPlayersGrid(list);
+        validateHostRolesMulti();
+      }
+    });
+
+    // Client: Khi được Host chấp thuận vào phòng
+    window.networkManager.on('onJoinAccepted', (data) => {
+      state.gameMode = 'multi_client';
+      state.myClientData.id = data.playerId;
+      state.myClientData.name = data.playerName;
+      
+      multiDeviceLobbyPhaseEl.classList.remove('active-phase');
+      clientPlayerPhaseEl.classList.add('active-phase');
+      
+      clientDisplayName.textContent = data.playerName;
+      clientSeatBadge.textContent = `Ghế #${data.playerId}`;
+      clientAvatarDisplay.textContent = getAvatarForId(data.playerId);
+      
+      clientRoleName.textContent = "CHỜ HOST CHIA BÀI...";
+      clientRoleDesc.textContent = "Vui lòng giữ điện thoại bên mình, ván chơi sắp bắt đầu!";
+    });
+
+    // Client: Khi bị từ chối vào phòng
+    window.networkManager.on('onJoinRejected', (data) => {
+      alert(`❌ Không thể vào phòng: ${data.reason}`);
+    });
+
+    // Client: Khi Host bắt đầu ván chơi và gửi vai trò bí mật
+    window.networkManager.on('onGameStarted', (data) => {
+      state.myClientData.role = data.role;
+      state.myClientData.isAlive = true;
+      state.players = data.allPlayers;
+
+      const meta = ROLE_META[data.role];
+      clientRoleIcon.textContent = meta.icon;
+      clientRoleName.textContent = meta.name.toUpperCase();
+      clientRoleTeam.textContent = meta.team === 'wolf' ? 'Phe Sói' : 'Phe Dân';
+      clientRoleDesc.textContent = meta.desc;
+
+      if (data.teammates && data.teammates.length > 0) {
+        clientTeammatesInfo.style.display = 'block';
+        clientTeammatesInfo.textContent = `🐺 Đồng đội Sói của bạn: ${data.teammates.join(', ')}`;
+      }
+
+      renderClientPlayersOverview();
+    });
+
+    // Client: Nhận tín hiệu ban đêm từ Host
+    window.networkManager.on('onNightStepReceived', (stepData) => {
+      handleClientNightStep(stepData);
+    });
+
+    // Client: Nhận tín hiệu đồng bộ buổi sáng từ Host
+    window.networkManager.on('onMorningSyncReceived', (syncData) => {
+      handleClientMorningSync(syncData);
+    });
+
+    // Host nhận hành động từ Client trong đêm
+    window.networkManager.on('onNightActionReceived', (actionData) => {
+      handleHostReceivedNightAction(actionData);
+    });
+  }
+
+  function getAvatarForId(id) {
+    const avatars = ['🧑', '👩', '🧔', '👱‍♂️', '👩‍🦰', '👨‍🦱', '👵', '🧓', '👱‍♀️', '🧑‍🦱'];
+    return avatars[(id - 1) % avatars.length];
+  }
+
+  /**
+   * Khởi tạo danh sách Giọng đọc vào Dropdown
    */
   function initVoiceDropdown() {
     const populate = (voices) => {
       if (!voiceSelect) return;
       voiceSelect.innerHTML = '';
 
-      // Sắp xếp ưu tiên tiếng Việt lên đầu
       const sorted = [...voices].sort((a, b) => {
         const aVi = a.lang.startsWith('vi');
         const bVi = b.lang.startsWith('vi');
@@ -212,9 +380,6 @@
     window.onVoicesLoaded = populate;
   }
 
-  /**
-   * Đăng ký Callbacks từ Audio Manager
-   */
   function setupAudioCallbacks() {
     if (!window.audioManager) return;
 
@@ -258,7 +423,29 @@
    * Đăng ký Event Listeners
    */
   function setupEventListeners() {
-    // 1. Số lượng người chơi
+    // 0. Chuyển đổi chế độ Chơi 1 máy <-> Phòng chơi đa thiết bị
+    modeSingleDeviceBtn.addEventListener('click', switchToSingleDeviceMode);
+    modeMultiDeviceBtn.addEventListener('click', switchToMultiDeviceMode);
+
+    tabCreateRoomBtn.addEventListener('click', showCreateRoomTab);
+    tabJoinRoomBtn.addEventListener('click', showJoinRoomTab);
+
+    // Multi-Device: Host tạo phòng
+    generateRandomRoomCodeBtn.addEventListener('click', generateRandomRoomCode);
+    enablePasswordCheckbox.addEventListener('change', () => {
+      hostPasswordInput.style.display = enablePasswordCheckbox.checked ? 'block' : 'none';
+      if (!enablePasswordCheckbox.checked) hostPasswordInput.value = '';
+    });
+    hostCreateRoomSubmitBtn.addEventListener('click', handleHostCreateRoomSubmit);
+    copyShareLinkBtn.addEventListener('click', copyShareRoomLink);
+    hostStartGameMultiBtn.addEventListener('click', handleHostStartGameMulti);
+
+    // Multi-Device: Client vào phòng
+    clientJoinRoomSubmitBtn.addEventListener('click', handleClientJoinRoomSubmit);
+    toggleSecretVisibilityBtn.addEventListener('click', toggleClientSecretVisibility);
+    clientConfirmActionBtn.addEventListener('click', clientConfirmNightDone);
+
+    // 1. Setup Phase Chơi 1 máy
     playerCountInput.addEventListener('input', () => {
       const val = parseInt(playerCountInput.value, 10);
       handlePlayerCountChange(val);
@@ -285,7 +472,6 @@
     randomizeNamesBtn.addEventListener('click', fillRandomNames);
     autoBalanceRolesBtn.addEventListener('click', autoBalanceRoles);
 
-    // Bộ đếm vai trò (+ / -)
     document.querySelectorAll('.counter-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const role = e.currentTarget.dataset.role;
@@ -294,15 +480,14 @@
       });
     });
 
-    // Chuyển sang Bước Đăng ký Vai trò
     startGameBtn.addEventListener('click', goToPassRolePhase);
 
-    // Xử lý Chuyền máy đăng ký vai trò
+    // Chuyền máy đăng ký bí mật (1 máy)
     unlockPassBtn.addEventListener('click', unlockPassScreenForCurrentPlayer);
     confirmRolePassBtn.addEventListener('click', confirmRoleForCurrentPlayer);
     randomAssignAllBtn.addEventListener('click', handleRandomAssignAll);
 
-    // Cài đặt Âm thanh nâng cao (Giọng đọc & Nhạc nền)
+    // Cài đặt Âm thanh
     voiceSelect.addEventListener('change', () => {
       if (window.audioManager) window.audioManager.setVoiceByURI(voiceSelect.value);
     });
@@ -326,7 +511,6 @@
       }
     });
 
-    // Điều khiển âm thanh thủ công
     speechPauseResumeBtn.addEventListener('click', () => {
       if (window.audioManager) window.audioManager.togglePauseResume();
     });
@@ -338,7 +522,6 @@
       }
     });
 
-    // Các nút kịch bản ban đêm thủ công
     narrateButtons.forEach(btn => {
       btn.addEventListener('click', () => {
         const action = btn.dataset.action;
@@ -354,10 +537,9 @@
       });
     });
 
-    // BẮT ĐẦU ĐÊM TỰ ĐỘNG 100%
     startAutoNightBtn.addEventListener('click', runFullAutoNightSequence);
 
-    // ĐỒNG HỒ HỌP BAN NGÀY
+    // Đồng hồ Họp ban ngày
     openMorningTimerBtn.addEventListener('click', () => openDiscussionTimer(state.discussionTotalSeconds));
     timerPlayPauseBtn.addEventListener('click', toggleDiscussionTimer);
     timerCloseBtn.addEventListener('click', closeDiscussionTimer);
@@ -373,7 +555,6 @@
       });
     });
 
-    // Nút sang đêm tiếp theo & Reset
     nextNightBtn.addEventListener('click', nextNight);
     resetGameBtn.addEventListener('click', confirmResetGame);
     clearLogBtn.addEventListener('click', () => {
@@ -383,7 +564,384 @@
   }
 
   /* ===================================================
-     PHASE 1: LOGIC THIẾT LẬP (SETUP)
+     CHUYỂN ĐỔI CHẾ ĐỘ CHƠI (SINGLE VS MULTI)
+     =================================================== */
+  function switchToSingleDeviceMode() {
+    state.gameMode = 'single';
+    modeSingleDeviceBtn.classList.add('active');
+    modeMultiDeviceBtn.classList.remove('active');
+
+    multiDeviceLobbyPhaseEl.classList.remove('active-phase');
+    clientPlayerPhaseEl.classList.remove('active-phase');
+    setupPhaseEl.classList.add('active-phase');
+  }
+
+  function switchToMultiDeviceMode() {
+    state.gameMode = 'multi_host';
+    modeMultiDeviceBtn.classList.add('active');
+    modeSingleDeviceBtn.classList.remove('active');
+
+    setupPhaseEl.classList.remove('active-phase');
+    passRolePhaseEl.classList.remove('active-phase');
+    multiDeviceLobbyPhaseEl.classList.add('active-phase');
+  }
+
+  function showCreateRoomTab() {
+    tabCreateRoomBtn.classList.add('active');
+    tabJoinRoomBtn.classList.remove('active');
+    hostRoomCreationView.style.display = 'flex';
+    clientJoinRoomView.style.display = 'none';
+  }
+
+  function showJoinRoomTab() {
+    tabJoinRoomBtn.classList.add('active');
+    tabCreateRoomBtn.classList.remove('active');
+    clientJoinRoomView.style.display = 'flex';
+    hostRoomCreationView.style.display = 'none';
+  }
+
+  function generateRandomRoomCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = 'SOI';
+    for (let i = 0; i < 3; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    hostRoomCodeInput.value = code;
+  }
+
+  /* ===================================================
+     MULTI-DEVICE: HOST KHỞI TẠO PHÒNG
+     =================================================== */
+  async function handleHostCreateRoomSubmit() {
+    let roomCode = hostRoomCodeInput.value.trim().toUpperCase();
+    if (!roomCode) {
+      generateRandomRoomCode();
+      roomCode = hostRoomCodeInput.value.trim().toUpperCase();
+    }
+
+    const password = hostPasswordInput.value.trim();
+    hostCreateRoomSubmitBtn.disabled = true;
+    hostCreateRoomSubmitBtn.innerHTML = `<span>⏳ Đang khởi tạo phòng P2P...</span>`;
+
+    try {
+      await window.networkManager.createRoom(roomCode, password);
+      
+      // Chuyển sang Sảnh chờ Host
+      hostRoomCreationView.style.display = 'none';
+      hostActiveLobbyView.style.display = 'flex';
+      displayActiveRoomCode.textContent = roomCode;
+
+      if (password) {
+        displayRoomPassBadge.textContent = `🔒 Mật khẩu: ${password}`;
+        displayRoomPassBadge.className = 'badge night-badge';
+      } else {
+        displayRoomPassBadge.textContent = `🔓 Không mật khẩu`;
+        displayRoomPassBadge.className = 'badge alive-badge';
+      }
+
+      // Tạo link chia sẻ
+      const shareUrl = `${window.location.origin}${window.location.pathname}?room=${roomCode}`;
+      shareRoomLinkInput.value = shareUrl;
+
+      // Sinh mã QR Code
+      renderQrCode(shareUrl);
+
+      validateHostRolesMulti();
+    } catch (err) {
+      alert("Không thể khởi tạo phòng. Vui lòng thử lại mã khác!");
+      hostCreateRoomSubmitBtn.disabled = false;
+      hostCreateRoomSubmitBtn.innerHTML = `<span>🚀 KHỞI TẠO PHÒNG CHƠI & LẤY MÃ QR</span>`;
+    }
+  }
+
+  function renderQrCode(url) {
+    roomQrCanvas.innerHTML = '';
+    if (typeof QRCode !== 'undefined') {
+      try {
+        new QRCode(roomQrCanvas, {
+          text: url,
+          width: 160,
+          height: 160,
+          colorDark: "#000000",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.M
+        });
+        return;
+      } catch(e){}
+    }
+    // Fallback nếu không có QRCode.js
+    const img = document.createElement('img');
+    img.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(url)}`;
+    img.alt = "QR Code";
+    img.style.width = "160px";
+    img.style.height = "160px";
+    roomQrCanvas.appendChild(img);
+  }
+
+  function copyShareRoomLink() {
+    shareRoomLinkInput.select();
+    navigator.clipboard.writeText(shareRoomLinkInput.value).then(() => {
+      const oldText = copyShareLinkBtn.textContent;
+      copyShareLinkBtn.textContent = "✅ Đã sao chép!";
+      setTimeout(() => copyShareLinkBtn.textContent = oldText, 2000);
+    });
+  }
+
+  function renderConnectedPlayersGrid(clients) {
+    connectedPlayersGrid.innerHTML = '';
+    state.connectedClients = clients;
+    connectedCountBadge.textContent = clients.length;
+    hostConnectedTarget.textContent = clients.length;
+
+    if (clients.length === 0) {
+      connectedPlayersGrid.innerHTML = `<div class="empty-players-hint">Đang chờ người chơi quét mã QR hoặc nhập mã phòng để vào...</div>`;
+      return;
+    }
+
+    clients.forEach((c, idx) => {
+      const chip = document.createElement('div');
+      chip.className = 'connected-player-badge';
+      chip.innerHTML = `
+        <span style="font-size: 1.3rem;">${getAvatarForId(c.id || idx + 1)}</span>
+        <div>
+          <strong>${c.name}</strong>
+          <small style="display:block; opacity: 0.7; font-size: 0.75rem;">Ghế #${c.id || idx + 1}</small>
+        </div>
+      `;
+      connectedPlayersGrid.appendChild(chip);
+    });
+  }
+
+  function validateHostRolesMulti() {
+    const totalRoles = Object.values(state.roles).reduce((a, b) => a + b, 0);
+    const playerCount = state.connectedClients.length;
+    hostTotalRolesCount.textContent = totalRoles;
+    hostConnectedTarget.textContent = playerCount;
+
+    if (playerCount < 5) {
+      hostRoleValidationMsg.className = 'validation-message error';
+      hostRoleValidationMsg.textContent = `(Cần tối thiểu 5 người chơi để bắt đầu, hiện có ${playerCount})`;
+      hostStartGameMultiBtn.disabled = true;
+      return;
+    }
+
+    if (totalRoles === playerCount) {
+      hostRoleValidationMsg.className = 'validation-message success';
+      hostRoleValidationMsg.textContent = `(Số vai trò hoàn toàn khớp: ${totalRoles}/${playerCount})`;
+      hostStartGameMultiBtn.disabled = false;
+    } else {
+      hostRoleValidationMsg.className = 'validation-message error';
+      hostRoleValidationMsg.textContent = `(Vai trò ${totalRoles} != Người chơi ${playerCount})`;
+      hostStartGameMultiBtn.disabled = true;
+    }
+  }
+
+  /* ===================================================
+     MULTI-DEVICE: HOST BẮT ĐẦU VÁN CHƠI & GỬI VAI TRÒ BÍ MẬT
+     =================================================== */
+  function handleHostStartGameMulti() {
+    const clients = Object.values(window.networkManager.clients);
+    const n = clients.length;
+
+    // Sinh pool vai trò và shuffle
+    const pool = [];
+    for (const [role, count] of Object.entries(state.roles)) {
+      for (let i = 0; i < count; i++) pool.push(role);
+    }
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+
+    state.players = clients.map((c, idx) => ({
+      id: c.id,
+      name: c.name,
+      role: pool[idx],
+      isAlive: true,
+      conn: c.conn
+    }));
+
+    // Tìm danh sách Ma Sói để báo đồng đội
+    const wolfNames = state.players.filter(p => p.role === 'werewolf').map(p => p.name);
+
+    // Gửi vai trò bí mật cho từng Client
+    state.players.forEach(p => {
+      const payload = {
+        type: 'GAME_STARTED_CLIENT',
+        data: {
+          role: p.role,
+          teammates: p.role === 'werewolf' ? wolfNames.filter(name => name !== p.name) : [],
+          allPlayers: state.players.map(x => ({ id: x.id, name: x.name, isAlive: x.isAlive }))
+        }
+      };
+      window.networkManager.sendToConn(p.conn, payload);
+    });
+
+    // Host chuyển sang Gameplay Phase
+    multiDeviceLobbyPhaseEl.classList.remove('active-phase');
+    gameplayPhaseEl.classList.add('active-phase');
+    gameHeaderBadges.style.display = 'flex';
+
+    updateBadges();
+    renderPlayerCards();
+
+    logGameEvent(`Ván chơi đa thiết bị bắt đầu với ${state.players.length} người chơi!`, 'info');
+    logGameEvent(`--- Đêm thứ 1 buông xuống. Chúc làng bình an! ---`, 'night');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /* ===================================================
+     MULTI-DEVICE: CLIENT VÀO PHÒNG & THAO TÁC CÁ NHÂN
+     =================================================== */
+  async function handleClientJoinRoomSubmit() {
+    const roomCode = clientRoomCodeInput.value.trim().toUpperCase();
+    const name = clientPlayerNameInput.value.trim();
+    const password = clientPasswordInput.value.trim();
+
+    if (!roomCode) {
+      alert("Vui lòng nhập mã phòng!");
+      return;
+    }
+    if (!name) {
+      alert("Vui lòng nhập tên của bạn!");
+      return;
+    }
+
+    clientJoinRoomSubmitBtn.disabled = true;
+    clientJoinRoomSubmitBtn.innerHTML = `<span>⏳ Đang kết nối vào phòng ${roomCode}...</span>`;
+
+    try {
+      await window.networkManager.joinRoom(roomCode, name, password);
+    } catch (err) {
+      alert("Không thể kết nối đến máy chủ phòng. Hãy kiểm tra lại mã phòng!");
+      clientJoinRoomSubmitBtn.disabled = false;
+      clientJoinRoomSubmitBtn.innerHTML = `<span>🚪 THAM GIA PHÒNG CHƠI</span>`;
+    }
+  }
+
+  function toggleClientSecretVisibility() {
+    const isHidden = clientRoleName.style.filter === 'blur(10px)';
+    if (isHidden) {
+      clientRoleName.style.filter = 'none';
+      clientRoleDesc.style.filter = 'none';
+      toggleSecretVisibilityBtn.textContent = '🙈 Ẩn vai trò';
+    } else {
+      clientRoleName.style.filter = 'blur(10px)';
+      clientRoleDesc.style.filter = 'blur(6px)';
+      toggleSecretVisibilityBtn.textContent = '👁️ Hiện vai trò';
+    }
+  }
+
+  function handleClientNightStep(stepData) {
+    const { activeRole, victimName, aliveTargets } = stepData;
+    const myRole = state.myClientData.role;
+    const isAlive = state.myClientData.isAlive;
+
+    // Rung nhẹ khi đến lượt vai trò của người chơi
+    if (myRole === activeRole && isAlive) {
+      if (navigator.vibrate) {
+        navigator.vibrate([200, 100, 200]);
+      }
+
+      clientSleepingState.style.display = 'none';
+      clientWakingState.style.display = 'block';
+
+      const meta = ROLE_META[activeRole];
+      clientWakeTitle.textContent = `${meta.name.toUpperCase()} ƠI, ĐẾN LƯỢT BẠN!`;
+      clientTargetsGrid.style.display = 'grid';
+      clientSeerRevealBox.style.display = 'none';
+      clientWitchBox.style.display = 'none';
+
+      if (activeRole === 'witch') {
+        clientTargetsGrid.style.display = 'none';
+        clientWitchBox.style.display = 'flex';
+        clientWitchVictimName.textContent = victimName || 'Không có ai';
+      } else {
+        renderClientTargets(aliveTargets, activeRole);
+      }
+    } else {
+      clientWakingState.style.display = 'none';
+      clientSleepingState.style.display = 'block';
+    }
+  }
+
+  function renderClientTargets(aliveTargets = [], roleKey) {
+    clientTargetsGrid.innerHTML = '';
+
+    aliveTargets.forEach(target => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'night-target-btn';
+      btn.innerHTML = `<span>🧑 ${target.name}</span><small>#${target.id}</small>`;
+
+      btn.addEventListener('click', () => {
+        clientTargetsGrid.querySelectorAll('.night-target-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+
+        if (roleKey === 'seer') {
+          // Tiên tri thấy kết quả
+          clientTargetsGrid.style.display = 'none';
+          clientSeerRevealBox.style.display = 'flex';
+          clientSeerTargetName.textContent = target.name;
+          const isWolf = target.team === 'wolf';
+          clientSeerVerdict.className = `seer-result-verdict ${isWolf ? 'wolf' : 'villager'}`;
+          clientSeerVerdict.textContent = isWolf ? 'PHE MA SÓI 🐺' : 'PHE DÂN LÀNG 🛡️';
+        }
+
+        window.networkManager.sendNightActionToHost({
+          role: roleKey,
+          targetId: target.id
+        });
+      });
+
+      clientTargetsGrid.appendChild(btn);
+    });
+  }
+
+  function clientConfirmNightDone() {
+    clientWakingState.style.display = 'none';
+    clientSleepingState.style.display = 'block';
+  }
+
+  function handleClientMorningSync(syncData) {
+    const { deadNames, protectedNames, healedNames, alivePlayers } = syncData;
+    clientWakingState.style.display = 'none';
+    clientSleepingState.style.display = 'block';
+
+    const amIDead = deadNames.includes(state.myClientData.name);
+    if (amIDead) {
+      state.myClientData.isAlive = false;
+      clientLifeBadge.className = 'client-life-badge dead';
+      clientLifeBadge.textContent = '💀 Đã chết';
+    }
+
+    state.players = alivePlayers;
+    renderClientPlayersOverview();
+  }
+
+  function renderClientPlayersOverview() {
+    clientPlayersOverviewList.innerHTML = '';
+    state.players.forEach(p => {
+      const chip = document.createElement('div');
+      chip.className = `client-player-chip ${p.isAlive ? '' : 'dead'}`;
+      chip.innerHTML = `<span>${p.isAlive ? '💚' : '💀'}</span> <span>${p.name}</span>`;
+      clientPlayersOverviewList.appendChild(chip);
+    });
+  }
+
+  function handleHostReceivedNightAction(actionData) {
+    const { role, targetId, witchHeal, witchPoisonTargetId } = actionData;
+    if (role === 'werewolf') state.nightPicks.attackedPlayerId = targetId;
+    if (role === 'guard') state.nightPicks.protectedPlayerId = targetId;
+    if (role === 'seer') state.nightPicks.seerCheckedPlayerId = targetId;
+    if (role === 'witch') {
+      if (witchHeal !== undefined) state.nightPicks.witchHealed = witchHeal;
+      if (witchPoisonTargetId !== undefined) state.nightPicks.witchPoisonedPlayerId = witchPoisonTargetId;
+    }
+  }
+
+  /* ===================================================
+     PHASE 1: CHƠI 1 MÁY (SINGLE DEVICE)
      =================================================== */
   function handlePlayerCountChange(count) {
     if (isNaN(count) || count < 5) {
@@ -440,6 +998,7 @@
 
     updateRoleCountersUI();
     validateSetupForm();
+    if (state.gameMode === 'multi_host') validateHostRolesMulti();
   }
 
   function updateRoleCountersUI() {
@@ -453,7 +1012,7 @@
   }
 
   function autoBalanceRoles() {
-    const n = state.playerCount;
+    const n = state.gameMode === 'multi_host' ? state.connectedClients.length : state.playerCount;
     if (n < 5) return;
 
     state.roles = { werewolf: 0, seer: 1, guard: 1, witch: 1, hunter: 0, villager: 0 };
@@ -475,6 +1034,7 @@
 
     updateRoleCountersUI();
     validateSetupForm();
+    if (state.gameMode === 'multi_host') validateHostRolesMulti();
   }
 
   function validateSetupForm() {
@@ -501,9 +1061,6 @@
     }
   }
 
-  /* ===================================================
-     PHASE 1.5: CHUYỀN MÁY ĐĂNG KÝ VAI TRÒ (ANTI-PEEKING)
-     =================================================== */
   function goToPassRolePhase() {
     const nameInputs = playerNamesList.querySelectorAll('input');
     state.players = [];
@@ -571,7 +1128,6 @@
   function renderSecretRoleOptions() {
     secretRolesSelectorGrid.innerHTML = '';
 
-    // Hiển thị tất cả vai trò mà KHÔNG làm lộ số lượng còn lại hay vô hiệu hóa bất kỳ vai trò nào
     for (const [roleKey, totalConfigured] of Object.entries(state.roles)) {
       if (totalConfigured === 0) continue;
 
@@ -638,7 +1194,7 @@
     }
 
     if (isMismatch) {
-      alert("⚠️ Đã có người chơi bấm nhầm vai trò (tổng số lượng vai trò được chọn không khớp với các lá bài phát ra ban đầu)!\n\nĐể đảm bảo bí mật và công bằng, hệ thống sẽ cho mọi người chuyền máy đăng ký lại một lượt.");
+      alert("⚠️ Đã có người chơi bấm nhầm vai trò!\n\nĐể đảm bảo bí mật và công bằng, hệ thống sẽ cho mọi người chuyền máy đăng ký lại một lượt.");
       state.passIndex = 0;
       state.players.forEach(p => p.role = null);
       renderLockScreen();
@@ -648,7 +1204,7 @@
   }
 
   function handleRandomAssignAll() {
-    if (confirm("Hệ thống sẽ tự xáo bài và chia vai trò bí mật cho tất cả mọi người. Bạn có muốn chuyển sang chế độ này?")) {
+    if (confirm("Hệ thống sẽ tự chia vai trò bí mật cho tất cả mọi người. Bạn có muốn chuyển sang chế độ này?")) {
       state.isRandomAssignedMode = true;
 
       const pool = [];
@@ -671,7 +1227,7 @@
   }
 
   /* ===================================================
-     PHASE 2: GAMEPLAY PHASE & BẢNG ĐIỀU KHIỂN
+     PHASE 2: GAMEPLAY DASHBOARD (HOST & SINGLE)
      =================================================== */
   function finishRegistrationAndStartGame() {
     state.currentNight = 1;
@@ -687,7 +1243,7 @@
     renderPlayerCards();
 
     gameLogContent.innerHTML = '';
-    logGameEvent(`Tất cả ${state.players.length} người chơi đã đăng ký vai trò bí mật xong!`, 'info');
+    logGameEvent(`Tất cả ${state.players.length} người chơi đã sẵn sàng!`, 'info');
     logGameEvent(`--- Đêm thứ 1 buông xuống. Chúc làng bình an! ---`, 'night');
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -701,7 +1257,6 @@
 
   function renderPlayerCards() {
     playersDashboardGrid.innerHTML = '';
-    const avatars = ['🧑', '👩', '🧔', '👱‍♂️', '👩‍🦰', '👨‍🦱', '👵', '🧓', '👱‍♀️', '🧑‍🦱'];
 
     state.players.forEach(player => {
       const card = document.createElement('div');
@@ -713,7 +1268,7 @@
 
       const avatar = document.createElement('div');
       avatar.className = 'player-avatar';
-      avatar.textContent = player.isAlive ? avatars[(player.id - 1) % avatars.length] : '💀';
+      avatar.textContent = player.isAlive ? getAvatarForId(player.id) : '💀';
 
       const info = document.createElement('div');
       info.className = 'player-card-info';
@@ -759,7 +1314,7 @@
     if (card) {
       card.className = `player-card ${player.isAlive ? 'alive' : 'dead'}`;
       const avatar = card.querySelector('.player-avatar');
-      if (avatar) avatar.textContent = player.isAlive ? '🧑' : '💀';
+      if (avatar) avatar.textContent = player.isAlive ? getAvatarForId(playerId) : '💀';
 
       const toggleBtn = card.querySelector('.btn-status-toggle');
       if (toggleBtn) {
@@ -777,7 +1332,7 @@
   }
 
   /* ===================================================
-     HỆ THỐNG ĐIỀU HÀNH ĐÊM TỰ ĐỘNG (100% AUTO ENGINE)
+     HỆ THỐNG ĐIỀU HÀNH ĐÊM TỰ ĐỘNG
      =================================================== */
   function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -797,7 +1352,6 @@
       seerCheckedPlayerId: null
     };
 
-    // Bật nhạc nền át tiếng động
     if (window.audioManager) {
       window.audioManager.startAmbient();
       ambientLabel.textContent = "Nhạc nền: BẬT";
@@ -807,11 +1361,18 @@
 
     // BƯỚC 1: ĐI NGỦ
     await window.audioManager.speakRole('sleep');
+    if (state.gameMode === 'multi_host' && window.networkManager) {
+      window.networkManager.broadcastToClients({
+        type: 'NIGHT_STEP_CLIENT',
+        data: { activeRole: 'none' }
+      });
+    }
     await delay(2500);
 
     // BƯỚC 2: BẢO VỆ
     const hasGuardAlive = state.players.some(p => p.role === 'guard' && p.isAlive);
     if (hasGuardAlive) {
+      broadcastNightStepToClients('guard');
       await runNightRoleStep({
         roleKey: 'guard',
         title: 'BẢO VỆ THỨC DẬY',
@@ -830,6 +1391,7 @@
     // BƯỚC 3: MA SÓI
     const hasWolfAlive = state.players.some(p => p.role === 'werewolf' && p.isAlive);
     if (hasWolfAlive) {
+      broadcastNightStepToClients('werewolf');
       await runNightRoleStep({
         roleKey: 'werewolf',
         title: 'MA SÓI THỨC DẬY',
@@ -848,6 +1410,7 @@
     // BƯỚC 4: TIÊN TRI
     const hasSeerAlive = state.players.some(p => p.role === 'seer' && p.isAlive);
     if (hasSeerAlive) {
+      broadcastNightStepToClients('seer');
       await runNightRoleStep({
         roleKey: 'seer',
         title: 'TIÊN TRI THỨC DẬY',
@@ -864,6 +1427,9 @@
     // BƯỚC 5: PHÙ THỦY
     const hasWitchAlive = state.players.some(p => p.role === 'witch' && p.isAlive);
     if (hasWitchAlive) {
+      const victim = state.players.find(p => p.id === state.nightPicks.attackedPlayerId);
+      broadcastNightStepToClients('witch', victim ? victim.name : null);
+
       await runNightRoleStep({
         roleKey: 'witch',
         title: 'PHÙ THỦY THỨC DẬY',
@@ -884,7 +1450,7 @@
       await delay(2000);
     }
 
-    // BƯỚC 7: TRỜI SÁNG & ĐỌC KẾT QUẢ
+    // BƯỚC 7: TRỜI SÁNG
     nightInteractiveOverlay.style.display = 'none';
     if (window.audioManager) {
       window.audioManager.stopAmbient();
@@ -896,8 +1462,28 @@
     state.isAutoNightRunning = false;
   }
 
+  function broadcastNightStepToClients(roleKey, victimName = null) {
+    if (state.gameMode === 'multi_host' && window.networkManager) {
+      const aliveTargets = state.players.filter(p => p.isAlive).map(p => ({
+        id: p.id,
+        name: p.name,
+        team: ROLE_META[p.role]?.team || 'villager'
+      }));
+
+      window.networkManager.broadcastToClients({
+        type: 'NIGHT_STEP_CLIENT',
+        data: {
+          activeRole: roleKey,
+          victimName: victimName,
+          aliveTargets: aliveTargets
+        }
+      });
+    }
+  }
+
   function runNightRoleStep({ title, icon, audioText, instruction, duration, isSeer = false, isWitch = false, onAction }) {
     return new Promise((resolve) => {
+      // Nếu là chế độ Multi-Device Host, chỉ hiển thị thông báo tiến độ, máy con sẽ tự bấm!
       nightRoleIcon.textContent = icon;
       nightRoleTitle.textContent = title;
       nightInstructionText.textContent = instruction;
@@ -914,11 +1500,7 @@
         witchControlsBox.style.display = 'flex';
 
         const victim = state.players.find(p => p.id === state.nightPicks.attackedPlayerId);
-        if (victim) {
-          witchVictimName.textContent = victim.name;
-        } else {
-          witchVictimName.textContent = "Không có ai";
-        }
+        witchVictimName.textContent = victim ? victim.name : "Không có ai";
 
         if (state.witchHealUsed || !victim) {
           witchHealBtn.disabled = true;
@@ -965,7 +1547,6 @@
               nightTargetsGrid.style.display = 'none';
               seerResultBox.style.display = 'flex';
               seerResultName.textContent = target.name;
-
               const isWolf = target.role === 'werewolf';
               seerResultVerdict.className = `seer-result-verdict ${isWolf ? 'wolf' : 'villager'}`;
               seerResultVerdict.textContent = isWolf ? 'PHE MA SÓI 🐺' : 'PHE DÂN LÀNG 🛡️';
@@ -1006,11 +1587,7 @@
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'night-target-btn';
-      btn.innerHTML = `
-        <span style="font-size: 1.3rem;">🧑</span>
-        <span>${player.name}</span>
-        <small style="font-size: 0.75rem; color: var(--text-muted);">#${player.id}</small>
-      `;
+      btn.innerHTML = `<span>🧑 ${player.name}</span><small style="opacity: 0.7;">#${player.id}</small>`;
 
       btn.addEventListener('click', () => {
         container.querySelectorAll('.night-target-btn').forEach(b => b.classList.remove('selected'));
@@ -1046,7 +1623,6 @@
         state.witchHealUsed = true;
       }
 
-      // Nếu không được bảo vệ và cũng không được phù thủy cứu thì chết
       if (!isProtected && !isSavedByWitch && victim && victim.isAlive) {
         deadPlayers.push(victim);
       }
@@ -1070,15 +1646,28 @@
     renderPlayerCards();
     updateBadges();
 
-    // 4. Hiển thị Banner Tổng kết sáng rực rỡ trên Dashboard
+    // 4. Đồng bộ kết quả sang các máy con nếu đang ở chế độ Multi-Device Host
+    if (state.gameMode === 'multi_host' && window.networkManager) {
+      window.networkManager.broadcastToClients({
+        type: 'MORNING_SYNC_CLIENT',
+        data: {
+          deadNames: deadNames,
+          protectedNames: protectedNames,
+          healedNames: healedNames,
+          alivePlayers: state.players.map(p => ({ id: p.id, name: p.name, isAlive: p.isAlive }))
+        }
+      });
+    }
+
+    // 5. Hiển thị Banner Tổng kết sáng
     renderMorningRecapBanner({ deadNames, protectedNames, healedNames });
 
-    // 5. Quản trò đọc dõng dạc (Bao gồm cả thông báo Bảo Vệ và Cứu!)
+    // 6. Quản trò đọc dõng dạc
     if (window.audioManager) {
       window.audioManager.speakMorningResult({ deadNames, protectedNames, healedNames });
     }
 
-    // 6. Ghi nhật ký sự kiện
+    // 7. Ghi nhật ký
     if (protectedNames.length > 0) {
       logGameEvent(`[Bảo vệ thành công] ${protectedNames.join(', ')} bị Sói tấn công nhưng đã được Bảo Vệ che chở!`, 'revive');
     }
@@ -1132,7 +1721,7 @@
   }
 
   /* ===================================================
-     HỆ THỐNG ĐỒNG HỒ HỌP THẢO LUẬN BAN NGÀY (FULLSCREEN)
+     ĐỒNG HỒ HỌP THẢO LUẬN BAN NGÀY
      =================================================== */
   function openDiscussionTimer(seconds) {
     morningDiscussionModal.style.display = 'flex';
@@ -1235,9 +1824,16 @@
       state.currentPhase = 'setup';
       gameplayPhaseEl.classList.remove('active-phase');
       passRolePhaseEl.classList.remove('active-phase');
-      setupPhaseEl.classList.add('active-phase');
-      gameHeaderBadges.style.display = 'none';
+      clientPlayerPhaseEl.classList.remove('active-phase');
+      multiDeviceLobbyPhaseEl.classList.remove('active-phase');
 
+      if (state.gameMode === 'multi_host' || state.gameMode === 'multi_client') {
+        switchToMultiDeviceMode();
+      } else {
+        switchToSingleDeviceMode();
+      }
+
+      gameHeaderBadges.style.display = 'none';
       validateSetupForm();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
