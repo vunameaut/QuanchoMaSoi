@@ -1,0 +1,1137 @@
+/* ===================================================
+   QUẢN TRÒ MA SÓI - DESIGN SYSTEM & STYLES (DARK/MYSTIC)
+   =================================================== */
+
+:root {
+  /* Color Palette */
+  --bg-primary: #080b12;
+  --bg-secondary: #0f1523;
+  --card-bg: rgba(15, 21, 35, 0.85);
+  --card-border: rgba(255, 255, 255, 0.08);
+  --card-border-glow: rgba(168, 85, 247, 0.35);
+
+  /* Accents */
+  --crimson-red: #e11d48;
+  --crimson-glow: rgba(225, 29, 72, 0.4);
+  --moon-yellow: #fbbf24;
+  --mystic-purple: #9333ea;
+  --cyan-glow: #06b6d4;
+
+  /* States */
+  --alive-green: #10b981;
+  --alive-green-bg: rgba(16, 185, 129, 0.15);
+  --alive-green-border: rgba(16, 185, 129, 0.4);
+  
+  --dead-red: #ef4444;
+  --dead-bg: rgba(239, 68, 68, 0.12);
+  --dead-border: rgba(239, 68, 68, 0.35);
+
+  /* Typography */
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --font-heading: 'Cinzel', serif;
+  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Elevation */
+  --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 20px rgba(225, 29, 72, 0.25);
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-full: 9999px;
+  
+  --transition-fast: 0.2s ease;
+  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  line-height: 1.6;
+  position: relative;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ===================================================
+   AMBIENT BACKGROUND EFFECTS (Night Sky & Fog)
+   =================================================== */
+.night-sky {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 10%, #151b2e 0%, #090d18 45%, #05070c 100%);
+}
+
+.moon {
+  position: absolute;
+  top: -60px;
+  right: 15%;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fef08a 0%, #ca8a04 40%, rgba(202, 138, 4, 0) 70%);
+  filter: blur(15px);
+  opacity: 0.25;
+  animation: moonPulse 8s infinite alternate ease-in-out;
+}
+
+@keyframes moonPulse {
+  0% { transform: scale(1); opacity: 0.2; }
+  100% { transform: scale(1.15); opacity: 0.35; }
+}
+
+.fog {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 40%;
+  background: linear-gradient(to top, rgba(225, 29, 72, 0.05), transparent);
+  pointer-events: none;
+}
+
+/* ===================================================
+   LAYOUT & CONTAINER
+   =================================================== */
+.app-container {
+  position: relative;
+  z-index: 1;
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 24px 20px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.glass-card {
+  background: var(--card-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  box-shadow: var(--shadow-lg);
+  transition: border-color var(--transition-normal);
+}
+
+.glass-card:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* ===================================================
+   HEADER
+   =================================================== */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.logo-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.wolf-icon {
+  font-size: 2.8rem;
+  filter: drop-shadow(0 0 16px var(--crimson-glow));
+  animation: wolfFloat 4s ease-in-out infinite alternate;
+}
+
+@keyframes wolfFloat {
+  0% { transform: translateY(0px) rotate(0deg); }
+  100% { transform: translateY(-4px) rotate(-3deg); }
+}
+
+.app-title {
+  font-family: var(--font-heading);
+  font-size: 1.9rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  background: linear-gradient(135deg, #ffffff 40%, #f43f5e 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.app-subtitle {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+}
+
+.header-badges {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.badge {
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.night-badge {
+  background: rgba(147, 51, 234, 0.2);
+  border: 1px solid rgba(147, 51, 234, 0.4);
+  color: #c084fc;
+}
+
+.alive-badge {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #34d399;
+}
+
+/* ===================================================
+   PHASE TRANSITIONS
+   =================================================== */
+.phase-container {
+  display: none;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.phase-container.active-phase {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ===================================================
+   PHASE 1: SETUP PHASE
+   =================================================== */
+.section-title {
+  font-family: var(--font-heading);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.step-num {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--crimson-red), #9f1239);
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  font-family: var(--font-body);
+  font-weight: 700;
+  box-shadow: 0 0 12px var(--crimson-glow);
+}
+
+.section-desc {
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+  margin-bottom: 22px;
+}
+
+.form-group {
+  margin-bottom: 24px;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
+
+.required {
+  color: #f43f5e;
+  font-size: 0.85rem;
+  font-weight: normal;
+}
+
+.number-input-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 240px;
+}
+
+.btn-step {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: white;
+  font-size: 1.4rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.btn-step:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.form-control {
+  width: 100%;
+  padding: 10px 14px;
+  background: rgba(10, 15, 28, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-sm);
+  color: white;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.text-center {
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.25rem;
+}
+
+.error-text {
+  color: #fb7185;
+  font-size: 0.86rem;
+  margin-top: 8px;
+}
+
+.section-header-inline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.btn-text-action {
+  background: none;
+  border: none;
+  color: #38bdf8;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.btn-text-action:hover {
+  background: rgba(56, 189, 248, 0.15);
+}
+
+.player-inputs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.player-input-item {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  gap: 10px;
+}
+
+.player-idx {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  min-width: 24px;
+}
+
+.player-input-item input {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 0.95rem;
+  width: 100%;
+  outline: none;
+  padding: 6px 0;
+}
+
+/* Roles Grid */
+.roles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.role-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+}
+
+.role-icon-box {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  margin-right: 14px;
+  flex-shrink: 0;
+}
+
+.wolf-bg { background: rgba(225, 29, 72, 0.2); border: 1px solid rgba(225, 29, 72, 0.4); }
+.seer-bg { background: rgba(147, 51, 234, 0.2); border: 1px solid rgba(147, 51, 234, 0.4); }
+.guard-bg { background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); }
+.witch-bg { background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); }
+.hunter-bg { background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); }
+.villager-bg { background: rgba(148, 163, 184, 0.2); border: 1px solid rgba(148, 163, 184, 0.3); }
+
+.role-info { flex-grow: 1; }
+.role-name { font-size: 1.05rem; font-weight: 700; }
+.role-desc { font-size: 0.78rem; color: var(--text-secondary); }
+
+.counter-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.counter-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: white;
+  cursor: pointer;
+}
+
+.counter-value { font-size: 1.15rem; font-weight: 700; min-width: 24px; text-align: center; }
+
+.validation-bar {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.highlight-number { font-size: 1.35rem; color: #38bdf8; }
+.validation-message.error { color: #f43f5e; font-weight: 600; }
+.validation-message.success { color: #34d399; font-weight: 600; }
+
+.setup-action-wrapper { display: flex; justify-content: center; }
+
+.btn-primary-start {
+  background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+  color: white;
+  font-family: var(--font-heading);
+  font-size: 1.12rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 16px 40px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 20px rgba(225, 29, 72, 0.4);
+  transition: all var(--transition-normal);
+}
+
+.btn-primary-start:disabled {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* ===================================================
+   PHẦN 1.5: CHUYỀN MÁY ĐĂNG KÝ VAI TRÒ (BẢO MẬT)
+   =================================================== */
+.secret-pass-card {
+  border-color: rgba(147, 51, 234, 0.35);
+  box-shadow: 0 0 35px rgba(147, 51, 234, 0.2);
+}
+
+.pass-mode-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 24px;
+}
+
+.lock-screen-box {
+  text-align: center;
+  padding: 40px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.lock-icon-anim { font-size: 4rem; animation: lockBounce 3s ease-in-out infinite; }
+@keyframes lockBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+
+.lock-player-name {
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
+  padding: 8px 24px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.lock-instruction {
+  max-width: 500px;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  padding: 12px 18px;
+  border-radius: var(--radius-sm);
+}
+
+.unlock-screen-box { display: flex; flex-direction: column; gap: 22px; }
+
+.secret-roles-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.secret-role-item {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.secret-role-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.secret-role-item.selected {
+  background: rgba(225, 29, 72, 0.25);
+  border-color: #f43f5e;
+  box-shadow: 0 0 15px rgba(225, 29, 72, 0.4);
+}
+
+.secret-role-item-info { display: flex; align-items: center; gap: 12px; }
+.secret-role-item-info .role-icon { font-size: 1.8rem; }
+.secret-role-item-name { font-weight: 700; font-size: 1.05rem; }
+
+/* ===================================================
+   PHASE 2: GAMEPLAY & THANH CÀI ĐẶT ÂM THANH NÂNG CAO
+   =================================================== */
+.narration-console {
+  border-color: rgba(147, 51, 234, 0.3);
+  box-shadow: 0 0 25px rgba(147, 51, 234, 0.15);
+}
+
+.console-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.console-title-group { display: flex; align-items: center; gap: 10px; }
+.console-title { font-size: 0.95rem; font-weight: 700; color: #c084fc; font-family: var(--font-heading); }
+
+.audio-controls-top { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.btn-icon-control {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all var(--transition-fast);
+}
+
+.btn-icon-control:hover:not(:disabled) { background: rgba(255, 255, 255, 0.16); }
+.btn-icon-control:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* THANH CÀI ĐẶT ÂM THANH NÂNG CAO */
+.audio-settings-bar {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.setting-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+}
+
+.form-select-mini {
+  background: #111726;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: white;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.86rem;
+  outline: none;
+  cursor: pointer;
+}
+
+.form-select-mini:focus {
+  border-color: #a855f7;
+}
+
+.volume-slider {
+  width: 90px;
+  accent-color: #a855f7;
+  cursor: pointer;
+}
+
+/* Subtitle & Wave */
+.speech-display-box {
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 20px;
+  min-height: 72px;
+}
+
+.sound-wave { display: flex; align-items: center; gap: 4px; height: 28px; }
+.wave-bar { width: 4px; height: 8px; background: #c084fc; border-radius: 2px; }
+.sound-wave.speaking .wave-bar:nth-child(odd) { animation: wave 0.8s infinite ease-in-out; }
+.sound-wave.speaking .wave-bar:nth-child(even) { animation: wave 0.8s infinite 0.2s ease-in-out; }
+@keyframes wave { 0%, 100% { height: 6px; } 50% { height: 26px; background: #f43f5e; } }
+
+.subtitle-text { font-size: 1.05rem; font-style: italic; }
+
+/* HÀNG NÚT CHÍNH: ĐÊM TỰ ĐỘNG & ĐỒNG HỒ HỌP */
+.main-action-buttons-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.btn-auto-night {
+  background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 50%, #db2777 100%);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 6px 25px rgba(124, 58, 237, 0.45);
+  transition: all var(--transition-normal);
+}
+
+.btn-auto-night:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(124, 58, 237, 0.65); }
+
+.btn-daytime-timer {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 60%, #ea580c 100%);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 6px 25px rgba(217, 119, 6, 0.45);
+  transition: all var(--transition-normal);
+}
+
+.btn-daytime-timer:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(217, 119, 6, 0.65); }
+
+.btn-auto-night .btn-icon, .btn-daytime-timer .btn-icon { font-size: 2.2rem; }
+.btn-auto-night strong, .btn-daytime-timer strong { display: block; font-family: var(--font-heading); font-size: 1.15rem; }
+.btn-auto-night small, .btn-daytime-timer small { display: block; color: rgba(255, 255, 255, 0.85); font-size: 0.82rem; }
+
+.manual-step-divider {
+  display: flex;
+  align-items: center;
+  margin: 10px 0 16px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.manual-step-divider::before, .manual-step-divider::after { content: ""; flex: 1; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.manual-step-divider span { padding: 0 12px; }
+
+/* Narration strip */
+.narration-buttons-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.btn-narrate {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  padding: 14px 10px;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+}
+
+.btn-narrate:hover { background: rgba(147, 51, 234, 0.25); border-color: rgba(147, 51, 234, 0.5); }
+.btn-narrate.active-speaking { background: rgba(225, 29, 72, 0.25); border-color: #f43f5e; box-shadow: 0 0 15px rgba(225, 29, 72, 0.4); }
+
+/* BANNER TỔNG KẾT BUỔI SÁNG (BẢO VỆ / CỨU / CHẾT) */
+.morning-recap-banner {
+  border-radius: var(--radius-md);
+  padding: 18px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  animation: fadeIn 0.4s ease;
+}
+
+.recap-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.recap-item.protected {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  padding: 12px 18px;
+  border-radius: var(--radius-sm);
+}
+
+.recap-item.healed {
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 12px 18px;
+  border-radius: var(--radius-sm);
+}
+
+.recap-item.death {
+  color: #fb7185;
+  background: rgba(244, 63, 94, 0.12);
+  border: 1px solid rgba(244, 63, 94, 0.3);
+  padding: 12px 18px;
+  border-radius: var(--radius-sm);
+}
+
+.recap-item.peaceful {
+  color: #a7f3d0;
+  background: rgba(5, 150, 105, 0.15);
+  border: 1px solid rgba(5, 150, 105, 0.3);
+  padding: 12px 18px;
+  border-radius: var(--radius-sm);
+}
+
+/* Dashboard Players Section */
+.players-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.player-card {
+  background: var(--card-bg);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  border: 1px solid var(--card-border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+}
+
+.player-card.alive { border-color: var(--alive-green-border); }
+.player-card.alive::before { content: ""; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--alive-green); }
+.player-card.dead { opacity: 0.85; border-color: var(--dead-border); }
+.player-card.dead::before { content: ""; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--dead-red); }
+.player-card.dead .player-card-name { text-decoration: line-through; color: var(--text-muted); }
+
+.player-card-header { display: flex; align-items: center; gap: 12px; }
+.player-avatar { width: 42px; height: 42px; border-radius: 50%; background: rgba(255, 255, 255, 0.08); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; }
+.player-card-info { flex-grow: 1; }
+.player-card-name { font-size: 1.1rem; font-weight: 700; }
+.player-card-role-badge { font-size: 0.75rem; padding: 2px 8px; border-radius: var(--radius-full); background: rgba(255, 255, 255, 0.08); color: var(--text-secondary); }
+
+.btn-status-toggle {
+  width: 100%; padding: 10px; border-radius: var(--radius-sm); font-size: 0.9rem; font-weight: 700; cursor: pointer; border: none;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.player-card.alive .btn-status-toggle { background: var(--alive-green-bg); border: 1px solid var(--alive-green-border); color: #34d399; }
+.player-card.dead .btn-status-toggle { background: var(--dead-bg); border: 1px solid var(--dead-border); color: #f87171; }
+
+.dashboard-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 14px; }
+.dashboard-actions { display: flex; gap: 10px; }
+.btn-secondary-action {
+  background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); color: var(--text-primary);
+  border-radius: var(--radius-sm); padding: 10px 18px; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+}
+.btn-danger-outline { border-color: rgba(239, 68, 68, 0.4); color: #fca5a5; }
+
+/* Event Log Card */
+.event-log-card { padding: 20px; }
+.log-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.log-content { background: rgba(0, 0, 0, 0.4); border-radius: var(--radius-sm); padding: 12px 16px; max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 0.88rem; }
+.log-item.info { color: #94a3b8; }
+.log-item.death { color: #f87171; }
+.log-item.night { color: #c084fc; font-weight: 600; }
+.log-item.revive { color: #34d399; }
+
+/* ===================================================
+   OVERLAY BAN ĐÊM (BẢO MẬT & ÁNH SÁNG TỐI)
+   =================================================== */
+.night-overlay {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(4, 6, 11, 0.96); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px;
+  backdrop-filter: blur(20px);
+}
+
+.night-overlay-content {
+  background: rgba(13, 17, 27, 0.95); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: var(--radius-lg);
+  max-width: 650px; width: 100%; padding: 28px; display: flex; flex-direction: column; gap: 20px;
+}
+
+.night-step-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding-bottom: 14px; }
+.step-role-badge { display: flex; align-items: center; gap: 10px; font-family: var(--font-heading); font-size: 1.3rem; font-weight: 700; color: #fbbf24; }
+.night-step-timer { font-size: 1.3rem; font-weight: 700; color: #f43f5e; background: rgba(244, 63, 94, 0.15); padding: 4px 12px; border-radius: var(--radius-full); }
+
+.night-targets-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; max-height: 250px; overflow-y: auto; }
+.night-target-btn {
+  background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: var(--radius-sm);
+  padding: 12px 8px; color: white; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; font-weight: 600;
+}
+.night-target-btn.selected { background: rgba(225, 29, 72, 0.3); border-color: #f43f5e; box-shadow: 0 0 12px rgba(225, 29, 72, 0.5); }
+
+/* Seer & Witch components */
+.seer-result-card { background: rgba(0, 0, 0, 0.5); border: 2px solid #a855f7; border-radius: var(--radius-md); padding: 24px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.seer-result-verdict { font-family: var(--font-heading); font-size: 1.5rem; font-weight: 900; padding: 8px 24px; border-radius: var(--radius-full); }
+.seer-result-verdict.wolf { background: rgba(225, 29, 72, 0.25); border: 1px solid #f43f5e; color: #fb7185; }
+.seer-result-verdict.villager { background: rgba(16, 185, 129, 0.25); border: 1px solid #34d399; color: #34d399; }
+
+.witch-controls-card { display: flex; flex-direction: column; gap: 16px; background: rgba(0, 0, 0, 0.4); padding: 18px; border-radius: var(--radius-md); }
+.witch-victim-banner { background: rgba(225, 29, 72, 0.15); border: 1px solid rgba(225, 29, 72, 0.3); padding: 10px 14px; border-radius: var(--radius-sm); }
+.witch-victim-banner strong { color: #f43f5e; }
+.witch-options-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.btn-potion { width: 100%; padding: 12px; border-radius: var(--radius-sm); font-weight: 700; cursor: pointer; }
+.btn-heal { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.35); color: #34d399; }
+.btn-heal.active { background: #10b981; color: white; }
+.btn-poison { background: rgba(147, 51, 234, 0.15); border: 1px solid rgba(147, 51, 234, 0.35); color: #c084fc; }
+.btn-poison.active { background: #9333ea; color: white; }
+
+/* ===================================================
+   MODAL TOÀN MÀN HÌNH: ĐỒNG HỒ HỌP THẢO LUẬN BAN NGÀY
+   =================================================== */
+.fullscreen-timer-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(circle at center, #1b2438 0%, #080d18 70%, #03050a 100%);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  backdrop-filter: blur(25px);
+  animation: fadeIn 0.3s ease;
+}
+
+.fullscreen-timer-container {
+  max-width: 680px;
+  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+}
+
+.timer-sun-icon {
+  font-size: 3.5rem;
+  filter: drop-shadow(0 0 20px #f59e0b);
+  animation: sunSpin 20s linear infinite;
+}
+
+@keyframes sunSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.timer-title {
+  font-family: var(--font-heading);
+  font-size: 2rem;
+  letter-spacing: 2px;
+  color: #fbbf24;
+  margin-top: 6px;
+}
+
+.timer-desc {
+  color: var(--text-secondary);
+  font-size: 1rem;
+}
+
+/* KHỐI ĐỒNG HỒ SỐ KHỔNG LỒ */
+.clock-display-wrap {
+  position: relative;
+  width: 290px;
+  height: 290px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clock-ring-outer {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 4px solid rgba(251, 191, 36, 0.25);
+  box-shadow: 0 0 45px rgba(251, 191, 36, 0.2), inset 0 0 35px rgba(251, 191, 36, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  transition: all 0.3s ease;
+}
+
+.clock-ring-outer.warning {
+  border-color: #ef4444;
+  box-shadow: 0 0 50px rgba(239, 68, 68, 0.6), inset 0 0 30px rgba(239, 68, 68, 0.3);
+  animation: timerWarningPulse 1s infinite alternate;
+}
+
+@keyframes timerWarningPulse {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.04); }
+}
+
+.clock-time-text {
+  font-family: var(--font-heading);
+  font-size: 4.8rem;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: #fbbf24;
+  text-shadow: 0 0 25px rgba(251, 191, 36, 0.5);
+}
+
+.clock-ring-outer.warning .clock-time-text {
+  color: #f87171;
+  text-shadow: 0 0 30px rgba(239, 68, 68, 0.7);
+}
+
+.clock-phase-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+/* Các nút preset nhanh */
+.timer-presets-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.btn-preset-time {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: white;
+  padding: 8px 18px;
+  border-radius: var(--radius-full);
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-preset-time:hover, .btn-preset-time.active {
+  background: rgba(251, 191, 36, 0.25);
+  border-color: #fbbf24;
+  color: #fbbf24;
+}
+
+.btn-add-time {
+  background: rgba(56, 189, 248, 0.15);
+  border-color: rgba(56, 189, 248, 0.4);
+  color: #38bdf8;
+}
+
+.btn-add-time:hover {
+  background: rgba(56, 189, 248, 0.3);
+}
+
+/* Hàng nút điều khiển đồng hồ */
+.timer-actions-row {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.btn-timer-primary {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: black;
+  border: none;
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+  font-weight: 800;
+  padding: 14px 32px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4);
+  transition: all var(--transition-fast);
+}
+
+.btn-timer-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(245, 158, 11, 0.6);
+}
+
+.btn-timer-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  font-weight: 700;
+  padding: 14px 28px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all var(--transition-fast);
+}
+
+.btn-timer-secondary:hover {
+  background: rgba(225, 29, 72, 0.25);
+  border-color: #f43f5e;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Footer */
+.app-footer { text-align: center; color: var(--text-muted); font-size: 0.82rem; padding-top: 10px; }
+
+/* ===================================================
+   RESPONSIVE DESIGN
+   =================================================== */
+@media (max-width: 768px) {
+  .app-container { padding: 16px 14px 40px; gap: 20px; }
+  .app-title { font-size: 1.45rem; }
+  .glass-card { padding: 18px; }
+  .roles-grid { grid-template-columns: 1fr; }
+  .main-action-buttons-row { grid-template-columns: 1fr; }
+  .audio-settings-bar { flex-direction: column; align-items: flex-start; }
+  .clock-display-wrap { width: 230px; height: 230px; }
+  .clock-time-text { font-size: 3.6rem; }
+  .narration-buttons-strip { grid-template-columns: repeat(2, 1fr); }
+  .btn-primary-start { width: 100%; justify-content: center; }
+  .dashboard-header-row { flex-direction: column; align-items: flex-start; }
+  .dashboard-actions { width: 100%; }
+  .dashboard-actions button { flex: 1; justify-content: center; }
+}

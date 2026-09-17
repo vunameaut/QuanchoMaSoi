@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quản Trò Ma Sói - Werewolf Game Master</title>
+  <meta name="description" content="Ứng dụng Quản trò Ma Sói thông minh hỗ trợ điều phối trò chơi, quản lý người chơi và phát âm thanh quản trò tự động bằng Tiếng Việt.">
+  
+  <!-- Google Fonts: Cinzel Decorative & Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Main CSS -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Ambient Night Glow Overlay & Stars -->
+  <div class="night-sky">
+    <div class="moon"></div>
+    <div class="fog"></div>
+  </div>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-wrapper">
+        <span class="wolf-icon">🐺</span>
+        <div>
+          <h1 class="app-title">QUẢN TRÒ MA SÓI</h1>
+          <p class="app-subtitle">Trợ lý ảo điều hành đêm trăng máu tự động 100%</p>
+        </div>
+      </div>
+      <div class="header-badges" id="gameHeaderBadges" style="display: none;">
+        <div class="badge night-badge" id="nightCountBadge">🌙 Đêm thứ 1</div>
+        <div class="badge alive-badge" id="aliveCountBadge">👥 Sống: 0/0</div>
+      </div>
+    </header>
+
+    <!-- ============================================== -->
+    <!-- PHẦN 1: MÀN HÌNH THIẾT LẬP (SETUP PHASE)      -->
+    <!-- ============================================== -->
+    <main id="setupPhase" class="phase-container active-phase">
+      <div class="glass-card setup-card">
+        <h2 class="section-title">
+          <span class="step-num">1</span> Thiết Lập Người Chơi
+        </h2>
+        
+        <div class="form-group">
+          <label for="playerCountInput" class="form-label">
+            Số lượng người chơi <span class="required">* (Tối thiểu 5 người)</span>
+          </label>
+          <div class="number-input-row">
+            <button type="button" class="btn-step" id="decreasePlayerBtn" aria-label="Giảm người chơi">-</button>
+            <input type="number" id="playerCountInput" min="5" max="30" value="6" class="form-control text-center">
+            <button type="button" class="btn-step" id="increasePlayerBtn" aria-label="Tăng người chơi">+</button>
+          </div>
+          <div id="playerCountError" class="error-text" style="display: none;">
+            ⚠️ Số lượng người chơi phải từ 5 người trở lên!
+          </div>
+        </div>
+
+        <div class="player-names-section">
+          <div class="section-header-inline">
+            <label class="form-label mb-0">Danh sách tên người chơi:</label>
+            <button type="button" class="btn-text-action" id="randomizeNamesBtn">🎲 Điền tên ngẫu nhiên</button>
+          </div>
+          <div id="playerNamesList" class="player-inputs-grid">
+            <!-- Dynamic name inputs generated via JavaScript -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Bảng phân bổ chức năng (Roles) -->
+      <div class="glass-card roles-card">
+        <div class="roles-header-row">
+          <h2 class="section-title mb-0">
+            <span class="step-num">2</span> Phân Bổ Chức Năng (Roles)
+          </h2>
+          <button type="button" class="btn-text-action" id="autoBalanceRolesBtn">⚖️ Cân bằng gợi ý</button>
+        </div>
+
+        <p class="section-desc">Tăng giảm số lượng từng vai trò sao cho tổng vai trò khớp chính xác với số người chơi.</p>
+
+        <div class="roles-grid" id="rolesGrid">
+          <!-- Role Items: Ma Sói, Tiên Tri, Bảo Vệ, Phù Thủy, Thợ Săn, Dân Làng -->
+          <div class="role-card" data-role="werewolf">
+            <div class="role-icon-box wolf-bg">🐺</div>
+            <div class="role-info">
+              <h3 class="role-name">Ma Sói</h3>
+              <span class="role-desc">Phe Sói • Thức dậy và chọn con mồi</span>
+            </div>
+            <div class="counter-box">
+              <button type="button" class="counter-btn" data-action="dec" data-role="werewolf">-</button>
+              <span class="counter-value" id="count-werewolf">1</span>
+              <button type="button" class="counter-btn" data-action="inc" data-role="werewolf">+</button>
+            </div>
+          </div>
+
+          <div class="role-card" data-role="seer">
+            <div class="role-icon-box seer-bg">🔮</div>
+            <div class="role-info">
+              <h3 class="role-name">Tiên Tri</h3>
+              <span class="role-desc">Phe Dân • Soi danh tính 1 người</span>
+            </div>
+            <div class="counter-box">
+              <button type="button" class="counter-btn" data-action="dec" data-role="seer">-</button>
+              <span class="counter-value" id="count-seer">1</span>
+              <button type="button" class="counter-btn" data-action="inc" data-role="seer">+</button>
+            </div>
+          </div>
+
+          <div class="role-card" data-role="guard">
+            <div class="role-icon-box guard-bg">🛡️</div>
+            <div class="role-info">
+              <h3 class="role-name">Bảo Vệ</h3>
+              <span class="role-desc">Phe Dân • Khiên hộ vệ 1 người</span>
+            </div>
+            <div class="counter-box">
+              <button type="button" class="counter-btn" data-action="dec" data-role="guard">-</button>
+              <span class="counter-value" id="count-guard">1</span>
+              <button type="button" class="counter-btn" data-action="inc" data-role="guard">+</button>
+            </div>
+          </div>
+
+          <div class="role-card" data-role="witch">
+            <div class="role-icon-box witch-bg">🧪</div>
+            <div class="role-info">
+              <h3 class="role-name">Phù Thủy</h3>
+              <span class="role-desc">Phe Dân • 1 bình cứu, 1 bình độc</span>
+            </div>
+            <div class="counter-box">
+              <button type="button" class="counter-btn" data-action="dec" data-role="witch">-</button>
+              <span class="counter-value" id="count-witch">1</span>
+              <button type="button" class="counter-btn" data-action="inc" data-role="witch">+</button>
+            </div>
+          </div>
+
+          <div class="role-card" data-role="hunter">
+            <div class="role-icon-box hunter-bg">🏹</div>
+            <div class="role-info">
+              <h3 class="role-name">Thợ Săn</h3>
+              <span class="role-desc">Phe Dân • Kéo theo 1 kẻ khi chết</span>
+            </div>
+            <div class="counter-box">
+              <button type="button" class="counter-btn" data-action="dec" data-role="hunter">-</button>
+              <span class="counter-value" id="count-hunter">0</span>
+              <button type="button" class="counter-btn" data-action="inc" data-role="hunter">+</button>
+            </div>
+          </div>
+
+          <div class="role-card" data-role="villager">
+            <div class="role-icon-box villager-bg">👨‍🌾</div>
+            <div class="role-info">
+              <h3 class="role-name">Dân Làng Thường</h3>
+              <span class="role-desc">Phe Dân • Suy luận và bỏ phiếu</span>
+            </div>
+            <div class="counter-box">
+              <button type="button" class="counter-btn" data-action="dec" data-role="villager">-</button>
+              <span class="counter-value" id="count-villager">2</span>
+              <button type="button" class="counter-btn" data-action="inc" data-role="villager">+</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bộ đếm tổng và ràng buộc -->
+        <div class="validation-bar">
+          <div class="summary-stat">
+            <span>Tổng chức năng:</span>
+            <strong id="totalRolesCount" class="highlight-number">6</strong>
+            <span class="slash">/</span>
+            <span>Số người chơi:</span>
+            <strong id="targetPlayerCount" class="highlight-number">6</strong>
+          </div>
+          <div id="validationWarning" class="validation-message">
+            <!-- Render error message if mismatch -->
+          </div>
+        </div>
+
+        <div class="setup-action-wrapper">
+          <button type="button" id="startGameBtn" class="btn-primary-start" disabled>
+            <span class="btn-icon">🔒</span>
+            <span>BƯỚC TIẾP: ĐĂNG KÝ VAI TRÒ BÍ MẬT</span>
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <!-- ============================================== -->
+    <!-- PHẦN 1.5: MÀN HÌNH CHUYỀN MÁY ĐĂNG KÝ VAI TRÒ  -->
+    <!-- (ANTI-PEEKING SECRET ROLE REGISTRATION)        -->
+    <!-- ============================================== -->
+    <main id="passRolePhase" class="phase-container">
+      <div class="glass-card secret-pass-card">
+        
+        <!-- Tab chuyển đổi: Tự chọn bài hay Máy tự chia -->
+        <div class="pass-mode-header">
+          <div class="pass-progress-text">
+            <span>Lượt người chơi:</span>
+            <strong id="passProgressCounter">1 / 6</strong>
+          </div>
+          <button type="button" class="btn-text-action" id="randomAssignAllBtn">
+            ⚡ Hoặc: Web tự chia ngẫu nhiên cho tất cả
+          </button>
+        </div>
+
+        <!-- MÀN HÌNH KHÓA: Chuyền máy (Người sau không thấy người trước) -->
+        <div id="passLockScreen" class="lock-screen-box">
+          <div class="lock-icon-anim">🔒</div>
+          <h2 class="lock-title">HÃY CHUYỂN MÁY CHO:</h2>
+          <div class="lock-player-name" id="lockTargetPlayerName">Nguyễn Văn A</div>
+          <p class="lock-instruction">
+            ⚠️ <strong>Quy tắc bảo mật:</strong> Mọi người khác hãy quay đi hoặc nhắm mắt! Chỉ người có tên trên màn hình mới được cầm máy và nhấn mở khóa.
+          </p>
+          <button type="button" id="unlockPassBtn" class="btn-primary-start">
+            <span>🔓 Tôi là người này, MỞ KHÓA</span>
+          </button>
+        </div>
+
+        <!-- MÀN HÌNH MỞ KHÓA: Người chơi chọn vai trò bí mật -->
+        <div id="passUnlockScreen" class="unlock-screen-box" style="display: none;">
+          <div class="unlock-header">
+            <span class="unlock-badge">Đang mở khóa bảo mật</span>
+            <h3 class="unlock-title">Xin chào, <span id="unlockPlayerName">Arthur</span>!</h3>
+            <p class="unlock-desc" id="unlockDescText">
+              Hãy chọn vai trò tương ứng với lá bài thật bạn đang cầm trên tay:
+            </p>
+          </div>
+
+          <!-- Grid vai trò khả dụng để chọn (Tất cả đều hiển thị bình thường, không lộ số lá) -->
+          <div class="secret-roles-selector-grid" id="secretRolesSelectorGrid">
+            <!-- Dynamically populated via JS -->
+          </div>
+
+          <!-- Thẻ hiển thị nếu ở chế độ xem vai trò đã phân ngẫu nhiên -->
+          <div id="randomRoleDisplayBox" class="random-role-card" style="display: none;">
+            <div class="random-role-icon" id="randomRoleIcon">🐺</div>
+            <div class="random-role-name" id="randomRoleName">MA SÓI</div>
+            <div class="random-role-desc" id="randomRoleDesc">Phe Sói • Thức dậy ban đêm cùng bầy để chọn con mồi</div>
+          </div>
+
+          <div class="unlock-actions">
+            <button type="button" id="confirmRolePassBtn" class="btn-primary-start" disabled>
+              <span>🔒 XÁC NHẬN & KHÓA MÀN HÌNH</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- ============================================== -->
+    <!-- PHẦN 2: MÀN HÌNH ĐIỀU KHIỂN & ÂM THANH (GAMEPLAY)-->
+    <!-- ============================================== -->
+    <main id="gameplayPhase" class="phase-container">
+      
+      <!-- Voice / Narration Subtitle Bar -->
+      <section class="narration-console glass-card">
+        <div class="console-header">
+          <div class="console-title-group">
+            <span class="pulsing-mic" id="micStatusIndicator">🎙️</span>
+            <span class="console-title">HỆ THỐNG ÂM THANH & QUẢN TRÒ</span>
+          </div>
+          
+          <div class="audio-controls-top">
+            <!-- Tùy chỉnh Giọng đọc & Nhạc nền -->
+            <button id="ambientToggleBtn" class="btn-icon-control" title="Bật/Tắt nhạc nền át tiếng động">
+              <span id="ambientIcon">🎵</span>
+              <span id="ambientLabel">Nhạc nền: Tắt</span>
+            </button>
+            <button id="speechPauseResumeBtn" class="btn-icon-control" title="Tạm dừng / Tiếp tục" disabled>
+              <span id="pauseResumeIcon">⏸️</span>
+              <span id="pauseResumeLabel">Tạm dừng</span>
+            </button>
+            <button id="speechStopBtn" class="btn-icon-control" title="Dừng đọc" disabled>
+              <span>⏹️</span>
+              <span>Dừng lại</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Thanh Cài Đặt Âm Thanh Nâng Cao (Giọng đọc & Loại nhạc) -->
+        <div class="audio-settings-bar">
+          <div class="setting-item">
+            <label for="voiceSelect">🗣️ Giọng đọc:</label>
+            <select id="voiceSelect" class="form-select-mini">
+              <!-- Nạp danh sách giọng đọc từ trình duyệt -->
+            </select>
+          </div>
+
+          <div class="setting-item">
+            <label for="voicePitchSelect">🎭 Tông giọng:</label>
+            <select id="voicePitchSelect" class="form-select-mini">
+              <option value="0.8">Trầm ấm huyền bí (Nam)</option>
+              <option value="1.0" selected>Tiêu chuẩn tự nhiên</option>
+              <option value="1.25">Trong trẻo (Nữ)</option>
+            </select>
+          </div>
+
+          <div class="setting-item">
+            <label for="ambientTrackSelect">🎶 Loại nhạc nền:</label>
+            <select id="ambientTrackSelect" class="form-select-mini">
+              <option value="forest">🌲 Rừng Đêm & Tiếng Gió</option>
+              <option value="suspense" selected>🎻 Hồi Hộp & Kịch Tính</option>
+              <option value="drums">🥁 Nhịp Trống Thảo Luận</option>
+              <option value="bloodmoon">🌌 Đêm Trăng Máu U Uẩn</option>
+            </select>
+          </div>
+
+          <div class="setting-item volume-setting">
+            <label for="ambientVolume">🔊 Âm lượng:</label>
+            <input type="range" id="ambientVolume" min="0" max="1" step="0.05" value="0.25" class="volume-slider">
+          </div>
+        </div>
+
+        <!-- Waveform and Live Subtitle -->
+        <div class="speech-display-box">
+          <div class="sound-wave" id="soundWaveAnimation">
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+          </div>
+          <div class="subtitle-text" id="liveSubtitle">
+            Sẵn sàng điều hành. Bấm "🌙 BẮT ĐẦU ĐÊM TỰ ĐỘNG" để quản trò tự động dẫn dắt toàn bộ đêm.
+          </div>
+        </div>
+
+        <!-- Nút kích hoạt ĐÊM TỰ ĐỘNG & ĐỒNG HỒ THẢO LUẬN -->
+        <div class="main-action-buttons-row">
+          <button type="button" id="startAutoNightBtn" class="btn-auto-night">
+            <span class="btn-icon">🌙</span>
+            <div class="btn-text-content">
+              <strong>BẮT ĐẦU ĐÊM TỰ ĐỘNG (100% AUTO)</strong>
+              <small>Tự phát nhạc nền, gọi từng vai trò thức dậy & át tiếng động</small>
+            </div>
+          </button>
+
+          <button type="button" id="openMorningTimerBtn" class="btn-daytime-timer">
+            <span class="btn-icon">⏱️</span>
+            <div class="btn-text-content">
+              <strong>ĐỒNG HỒ HỌP BAN NGÀY</strong>
+              <small>Hiển thị đồng hồ đếm ngược biểu quyết toàn màn hình</small>
+            </div>
+          </button>
+        </div>
+
+        <!-- Bộ nút bấm thứ tự điều hành màn đêm (thủ công nếu muốn) -->
+        <div class="manual-step-divider">
+          <span>Hoặc kích hoạt từng bước thủ công:</span>
+        </div>
+
+        <div class="narration-buttons-strip">
+          <button type="button" class="btn-narrate" data-action="sleep">
+            <span class="narrate-icon">🌙</span>
+            <div class="narrate-label">
+              <strong>1. Ngủ</strong>
+              <small>Làng nhắm mắt</small>
+            </div>
+          </button>
+
+          <button type="button" class="btn-narrate" data-action="guard">
+            <span class="narrate-icon">🛡️</span>
+            <div class="narrate-label">
+              <strong>2. Bảo vệ</strong>
+              <small>Thức dậy bảo vệ</small>
+            </div>
+          </button>
+
+          <button type="button" class="btn-narrate" data-action="werewolf">
+            <span class="narrate-icon">🐺</span>
+            <div class="narrate-label">
+              <strong>3. Ma Sói</strong>
+              <small>Thức dậy săn mồi</small>
+            </div>
+          </button>
+
+          <button type="button" class="btn-narrate" data-action="seer">
+            <span class="narrate-icon">🔮</span>
+            <div class="narrate-label">
+              <strong>4. Tiên Tri</strong>
+              <small>Thức dậy soi người</small>
+            </div>
+          </button>
+
+          <button type="button" class="btn-narrate" data-action="witch">
+            <span class="narrate-icon">🧪</span>
+            <div class="narrate-label">
+              <strong>5. Phù Thủy</strong>
+              <small>Cứu hoặc dùng độc</small>
+            </div>
+          </button>
+
+          <button type="button" class="btn-narrate" data-action="hunter">
+            <span class="narrate-icon">🏹</span>
+            <div class="narrate-label">
+              <strong>6. Thợ Săn</strong>
+              <small>Kiểm tra phát bắn</small>
+            </div>
+          </button>
+
+          <button type="button" class="btn-narrate btn-morning" data-action="morning">
+            <span class="narrate-icon">☀️</span>
+            <div class="narrate-label">
+              <strong>7. Trời Sáng</strong>
+              <small>Tổng kết đêm</small>
+            </div>
+          </button>
+        </div>
+      </section>
+
+      <!-- Banner Tổng Kết Buổi Sáng (Ai được bảo vệ / cứu / hy sinh) -->
+      <div id="morningRecapBanner" class="morning-recap-banner" style="display: none;">
+        <!-- Dynamically populated -->
+      </div>
+
+      <!-- Dashboard Quản Lý Người Chơi -->
+      <section class="players-dashboard">
+        <div class="dashboard-header-row">
+          <div>
+            <h2 class="section-title mb-0">👥 Danh Sách Người Chơi</h2>
+            <p class="section-desc">Trạng thái tự động cập nhật khi trời sáng hoặc bạn có thể nhấp để đổi trạng thái thủ công</p>
+          </div>
+          
+          <div class="dashboard-actions">
+            <button type="button" id="nextNightBtn" class="btn-secondary-action">
+              🌙 Sang đêm tiếp theo
+            </button>
+            <button type="button" id="resetGameBtn" class="btn-secondary-action btn-danger-outline">
+              🔄 Thiết lập lại
+            </button>
+          </div>
+        </div>
+
+        <!-- Grid of Player Cards -->
+        <div class="players-grid" id="playersDashboardGrid">
+          <!-- Dynamically populated via JavaScript -->
+        </div>
+      </section>
+
+      <!-- Game Event Log / Lịch sử sự kiện -->
+      <section class="glass-card event-log-card">
+        <div class="log-header">
+          <h3 class="log-title">📜 Nhật Ký Đêm & Sự Kiện</h3>
+          <button type="button" class="btn-text-action" id="clearLogBtn">Xóa nhật ký</button>
+        </div>
+        <div class="log-content" id="gameLogContent">
+          <div class="log-item info">Trò chơi bắt đầu. Chúc làng bình an!</div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ============================================== -->
+    <!-- OVERLAY TƯƠNG TÁC BAN ĐÊM (BẢO MẬT & ÁNH SÁNG TỐI)-->
+    <!-- ============================================== -->
+    <div id="nightInteractiveOverlay" class="night-overlay" style="display: none;">
+      <div class="night-overlay-content">
+        
+        <!-- Header Bước Hiện Tại & Đếm Ngược -->
+        <div class="night-step-header">
+          <div class="step-role-badge" id="nightStepBadge">
+            <span id="nightRoleIcon">🛡️</span>
+            <span id="nightRoleTitle">BẢO VỆ THỨC DẬY</span>
+          </div>
+          <div class="night-step-timer" id="nightStepTimer">15s</div>
+        </div>
+
+        <!-- Lời dặn dò cho vai trò hiện tại -->
+        <p class="night-instruction" id="nightInstructionText">
+          Bảo vệ hãy chạm vào người bạn muốn bảo vệ đêm nay:
+        </p>
+
+        <!-- Container chọn mục tiêu cho Sói / Bảo vệ / Tiên tri -->
+        <div class="night-targets-grid" id="nightTargetsGrid">
+          <!-- Dynamically populated with alive players -->
+        </div>
+
+        <!-- Hộp hiển thị kết quả soi đặc biệt cho Tiên Tri -->
+        <div id="seerResultBox" class="seer-result-card" style="display: none;">
+          <div class="seer-result-avatar" id="seerResultAvatar">🔮</div>
+          <div class="seer-result-name" id="seerResultName">Arthur</div>
+          <div class="seer-result-verdict" id="seerResultVerdict">PHE MA SÓI</div>
+        </div>
+
+        <!-- Bảng điều khiển đặc biệt cho Phù Thủy -->
+        <div id="witchControlsBox" class="witch-controls-card" style="display: none;">
+          <div class="witch-victim-banner" id="witchVictimBanner">
+            <span>🩸 Đêm nay:</span>
+            <strong id="witchVictimName">Arthur</strong>
+            <span>đã bị Ma Sói cắn!</span>
+          </div>
+
+          <div class="witch-options-row">
+            <!-- Bình cứu -->
+            <div class="witch-option-box">
+              <h4>Bình Thuốc Cứu:</h4>
+              <button type="button" id="witchHealBtn" class="btn-potion btn-heal">
+                <span>💚</span>
+                <span id="witchHealStatus">Cứu sống người này</span>
+              </button>
+            </div>
+
+            <!-- Bình độc -->
+            <div class="witch-option-box">
+              <h4>Bình Thuốc Độc:</h4>
+              <button type="button" id="witchPoisonToggleBtn" class="btn-potion btn-poison">
+                <span>🧪</span>
+                <span id="witchPoisonStatus">Chọn người để đầu độc</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Danh sách chọn người để đầu độc (ẩn theo mặc định) -->
+          <div id="witchPoisonTargetList" class="night-targets-grid mt-3" style="display: none;">
+            <!-- Render targets -->
+          </div>
+        </div>
+
+        <!-- Nút xác nhận hoàn thành lượt đêm -->
+        <div class="night-action-footer">
+          <button type="button" id="nightConfirmDoneBtn" class="btn-primary-start">
+            <span>✅ ĐÃ CHỌN XONG / NHẮM MẮT</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- MODAL TOÀN MÀN HÌNH: ĐỒNG HỒ HỌP THẢO LUẬN BAN NGÀY -->
+    <!-- ============================================== -->
+    <div id="morningDiscussionModal" class="fullscreen-timer-modal" style="display: none;">
+      <div class="fullscreen-timer-container">
+        
+        <div class="timer-header">
+          <span class="timer-sun-icon">☀️</span>
+          <h2 class="timer-title">HỌP DÂN LÀNG & THẢO LUẬN</h2>
+          <p class="timer-desc">Thời gian tranh luận, phản biện và tìm ra kẻ trà trộn vào ban ngày</p>
+        </div>
+
+        <!-- Vòng tròn Đồng hồ đếm ngược kỹ thuật số khổng lồ -->
+        <div class="clock-display-wrap">
+          <div class="clock-ring-outer">
+            <div class="clock-time-text" id="fullscreenClockTime">03:00</div>
+            <div class="clock-phase-label" id="clockPhaseLabel">ĐANG THẢO LUẬN</div>
+          </div>
+        </div>
+
+        <!-- Các mốc thời gian thiết lập nhanh -->
+        <div class="timer-presets-row">
+          <button type="button" class="btn-preset-time" data-minutes="1">1 Phút</button>
+          <button type="button" class="btn-preset-time" data-minutes="2">2 Phút</button>
+          <button type="button" class="btn-preset-time active" data-minutes="3">3 Phút</button>
+          <button type="button" class="btn-preset-time" data-minutes="5">5 Phút</button>
+          <button type="button" class="btn-preset-time btn-add-time" id="add30SecBtn">+30 Giây</button>
+        </div>
+
+        <!-- Các nút hành động chính -->
+        <div class="timer-actions-row">
+          <button type="button" id="timerPlayPauseBtn" class="btn-timer-primary">
+            <span id="timerPlayPauseIcon">⏸️</span>
+            <span id="timerPlayPauseText">Tạm dừng</span>
+          </button>
+          <button type="button" id="timerCloseBtn" class="btn-timer-secondary">
+            <span>⚖️ KẾT THÚC & VÀO BIỂU QUYẾT</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>Hệ thống Quản Trò Ma Sói • Single Page Application • Tự Động 100% • Web Speech API</p>
+    </footer>
+  </div>
+
+  <!-- Scripts: Audio Manager first, then Main App logic -->
+  <script src="js/audio.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
