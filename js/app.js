@@ -41,6 +41,15 @@
 
     // Multi-Device Host & Client State
     connectedClients: [],
+    hostTargetPlayerCount: 6,
+    hostRoles: {
+      werewolf: 1,
+      seer: 1,
+      guard: 1,
+      witch: 1,
+      hunter: 0,
+      villager: 2
+    },
     multiRoleMode: 'offline', // 'offline' (chọn bài thật) | 'online' (chia ngẫu nhiên)
     hostClientPicks: {}, // { [playerId]: roleKey }
     clientSelectedRole: null,
@@ -127,10 +136,21 @@
   const connectedPlayersGrid = document.getElementById('connectedPlayersGrid');
   const hostTotalRolesCount = document.getElementById('hostTotalRolesCount');
   const hostConnectedTarget = document.getElementById('hostConnectedTarget');
+  const hostConnectedActualCount = document.getElementById('hostConnectedActualCount');
   const hostRoleValidationMsg = document.getElementById('hostRoleValidationMsg');
   const hostStartGameMultiBtn = document.getElementById('hostStartGameMultiBtn');
   const hostStartBtnIcon = document.getElementById('hostStartBtnIcon');
   const hostStartBtnText = document.getElementById('hostStartBtnText');
+
+  const hostTargetPlayerCountInput = document.getElementById('hostTargetPlayerCountInput');
+  const hostDecreasePlayerBtn = document.getElementById('hostDecreasePlayerBtn');
+  const hostIncreasePlayerBtn = document.getElementById('hostIncreasePlayerBtn');
+  const hostLobbyTargetDisplay = document.getElementById('hostLobbyTargetDisplay');
+  const hostSyncWithActualConnectedBtn = document.getElementById('hostSyncWithActualConnectedBtn');
+  const hostLobbyPlayerCountInput = document.getElementById('hostLobbyPlayerCountInput');
+  const hostLobbyDecPlayerBtn = document.getElementById('hostLobbyDecPlayerBtn');
+  const hostLobbyIncPlayerBtn = document.getElementById('hostLobbyIncPlayerBtn');
+  const hostAutoBalanceRolesBtn = document.getElementById('hostAutoBalanceRolesBtn');
 
   const radioDistOffline = document.getElementById('radioDistOffline');
   const radioDistOnline = document.getElementById('radioDistOnline');
@@ -280,6 +300,8 @@
     renderPlayerInputs();
     updateRoleCountersUI();
     validateSetupForm();
+    updateHostRoleCountersUI();
+    validateHostRolesMulti();
     checkUrlQueryParams();
   }
 
@@ -564,6 +586,49 @@
       });
     }
 
+    // Host: Điều chỉnh số lượng người chơi phòng
+    if (hostDecreasePlayerBtn) {
+      hostDecreasePlayerBtn.addEventListener('click', () => {
+        handleHostTargetPlayerCountChange(state.hostTargetPlayerCount - 1);
+      });
+    }
+    if (hostIncreasePlayerBtn) {
+      hostIncreasePlayerBtn.addEventListener('click', () => {
+        handleHostTargetPlayerCountChange(state.hostTargetPlayerCount + 1);
+      });
+    }
+    if (hostTargetPlayerCountInput) {
+      hostTargetPlayerCountInput.addEventListener('input', (e) => {
+        handleHostTargetPlayerCountChange(e.target.value);
+      });
+    }
+
+    if (hostLobbyDecPlayerBtn) {
+      hostLobbyDecPlayerBtn.addEventListener('click', () => {
+        handleHostTargetPlayerCountChange(state.hostTargetPlayerCount - 1);
+      });
+    }
+    if (hostLobbyIncPlayerBtn) {
+      hostLobbyIncPlayerBtn.addEventListener('click', () => {
+        handleHostTargetPlayerCountChange(state.hostTargetPlayerCount + 1);
+      });
+    }
+    if (hostLobbyPlayerCountInput) {
+      hostLobbyPlayerCountInput.addEventListener('input', (e) => {
+        handleHostTargetPlayerCountChange(e.target.value);
+      });
+    }
+    if (hostSyncWithActualConnectedBtn) {
+      hostSyncWithActualConnectedBtn.addEventListener('click', () => {
+        const count = Math.max(5, state.connectedClients.length);
+        handleHostTargetPlayerCountChange(count);
+        autoBalanceHostRoles();
+      });
+    }
+    if (hostAutoBalanceRolesBtn) {
+      hostAutoBalanceRolesBtn.addEventListener('click', autoBalanceHostRoles);
+    }
+
     // 1. Setup Phase Chơi 1 máy
     playerCountInput.addEventListener('input', () => {
       const val = parseInt(playerCountInput.value, 10);
@@ -595,7 +660,12 @@
       btn.addEventListener('click', (e) => {
         const role = e.currentTarget.dataset.role;
         const action = e.currentTarget.dataset.action;
-        adjustRoleCount(role, action);
+        const scope = e.currentTarget.dataset.scope;
+        if (scope === 'host') {
+          adjustHostRoleCount(role, action);
+        } else {
+          adjustRoleCount(role, action);
+        }
       });
     });
 
@@ -765,7 +835,14 @@
       // Sinh mã QR Code
       renderQrCode(shareUrl);
 
-      validateHostRolesMulti();
+      // Đồng bộ số người chơi mục tiêu từ màn hình tạo phòng sang sảnh
+      if (hostTargetPlayerCountInput) {
+        const initialCount = parseInt(hostTargetPlayerCountInput.value, 10) || 6;
+        handleHostTargetPlayerCountChange(initialCount);
+      } else {
+        updateHostRoleCountersUI();
+        validateHostRolesMulti();
+      }
     } catch (err) {
       alert("Không thể khởi tạo phòng. Vui lòng thử lại mã khác!");
       hostCreateRoomSubmitBtn.disabled = false;
@@ -806,11 +883,75 @@
     });
   }
 
+  function handleHostTargetPlayerCountChange(val) {
+    let count = parseInt(val, 10);
+    if (isNaN(count)) count = 5;
+    count = Math.max(5, Math.min(30, count));
+
+    state.hostTargetPlayerCount = count;
+    if (hostTargetPlayerCountInput) hostTargetPlayerCountInput.value = count;
+    if (hostLobbyPlayerCountInput) hostLobbyPlayerCountInput.value = count;
+    if (hostLobbyTargetDisplay) hostLobbyTargetDisplay.textContent = count;
+    if (hostConnectedTarget) hostConnectedTarget.textContent = count;
+
+    validateHostRolesMulti();
+  }
+
+  function adjustHostRoleCount(role, action) {
+    if (state.hostRoles[role] === undefined) return;
+    if (action === 'inc') {
+      state.hostRoles[role] += 1;
+    } else if (action === 'dec') {
+      if (role === 'werewolf' && state.hostRoles[role] <= 1) return; // Luôn cần tối thiểu 1 Ma Sói
+      if (state.hostRoles[role] > 0) state.hostRoles[role] -= 1;
+    }
+
+    updateHostRoleCountersUI();
+    validateHostRolesMulti();
+  }
+
+  function updateHostRoleCountersUI() {
+    let total = 0;
+    for (const [role, count] of Object.entries(state.hostRoles)) {
+      const el = document.getElementById(`host-count-${role}`);
+      if (el) el.textContent = count;
+      total += count;
+    }
+    if (hostTotalRolesCount) hostTotalRolesCount.textContent = total;
+  }
+
+  function autoBalanceHostRoles() {
+    const n = state.hostTargetPlayerCount || 6;
+    if (n < 5) return;
+
+    state.hostRoles = { werewolf: 1, seer: 1, guard: 1, witch: 1, hunter: 0, villager: 0 };
+    if (n <= 6) {
+      state.hostRoles.werewolf = 1;
+    } else if (n <= 9) {
+      state.hostRoles.werewolf = 2;
+      state.hostRoles.hunter = 1;
+    } else if (n <= 12) {
+      state.hostRoles.werewolf = 3;
+      state.hostRoles.hunter = 1;
+    } else {
+      state.hostRoles.werewolf = 4;
+      state.hostRoles.hunter = 1;
+    }
+
+    const specialCount = Object.values(state.hostRoles).reduce((a, b) => a + b, 0);
+    state.hostRoles.villager = Math.max(0, n - specialCount);
+
+    updateHostRoleCountersUI();
+    validateHostRolesMulti();
+  }
+
   function renderConnectedPlayersGrid(clients) {
     connectedPlayersGrid.innerHTML = '';
     state.connectedClients = clients;
-    connectedCountBadge.textContent = clients.length;
-    hostConnectedTarget.textContent = clients.length;
+    if (connectedCountBadge) connectedCountBadge.textContent = clients.length;
+    if (hostConnectedActualCount) hostConnectedActualCount.textContent = clients.length;
+    if (hostConnectedTarget) hostConnectedTarget.textContent = state.hostTargetPlayerCount;
+    if (hostLobbyTargetDisplay) hostLobbyTargetDisplay.textContent = state.hostTargetPlayerCount;
 
     if (clients.length === 0) {
       connectedPlayersGrid.innerHTML = `<div class="empty-players-hint">Đang chờ người chơi quét mã QR hoặc nhập mã phòng để vào...</div>`;
@@ -832,27 +973,39 @@
   }
 
   function validateHostRolesMulti() {
-    const totalRoles = Object.values(state.roles).reduce((a, b) => a + b, 0);
-    const playerCount = state.connectedClients.length;
-    hostTotalRolesCount.textContent = totalRoles;
-    hostConnectedTarget.textContent = playerCount;
+    const totalRoles = Object.values(state.hostRoles).reduce((a, b) => a + b, 0);
+    const targetCount = state.hostTargetPlayerCount;
+    const actualConnected = state.connectedClients.length;
 
-    if (playerCount < 5) {
+    if (hostTotalRolesCount) hostTotalRolesCount.textContent = totalRoles;
+    if (hostConnectedTarget) hostConnectedTarget.textContent = targetCount;
+    if (hostConnectedActualCount) hostConnectedActualCount.textContent = actualConnected;
+
+    if (targetCount < 5) {
       hostRoleValidationMsg.className = 'validation-message error';
-      hostRoleValidationMsg.textContent = `(Cần tối thiểu 5 người chơi để bắt đầu, hiện có ${playerCount})`;
+      hostRoleValidationMsg.textContent = `❌ Số lượng người chơi phòng tối thiểu phải là 5 người!`;
       hostStartGameMultiBtn.disabled = true;
       return;
     }
 
-    if (totalRoles === playerCount) {
-      hostRoleValidationMsg.className = 'validation-message success';
-      hostRoleValidationMsg.textContent = `(Số vai trò hoàn toàn khớp: ${totalRoles}/${playerCount})`;
-      hostStartGameMultiBtn.disabled = false;
-    } else {
+    if (totalRoles !== targetCount) {
       hostRoleValidationMsg.className = 'validation-message error';
-      hostRoleValidationMsg.textContent = `(Vai trò ${totalRoles} != Người chơi ${playerCount})`;
+      hostRoleValidationMsg.textContent = `❌ Tổng vai trò (${totalRoles}) chưa khớp với số người thiết lập (${targetCount}). Vui lòng cân bằng lại!`;
       hostStartGameMultiBtn.disabled = true;
+      return;
     }
+
+    if (actualConnected < targetCount) {
+      hostRoleValidationMsg.className = 'validation-message warning';
+      hostRoleValidationMsg.textContent = `⏳ Đã cấu hình ${targetCount} vai trò chuẩn! Đang chờ đủ người vào phòng (hiện có ${actualConnected}/${targetCount})...`;
+      hostStartGameMultiBtn.disabled = true;
+      return;
+    }
+
+    // Đủ người và vai trò đã cân bằng chính xác
+    hostRoleValidationMsg.className = 'validation-message success';
+    hostRoleValidationMsg.textContent = `✅ Sẵn sàng! ${actualConnected} người đã kết nối khớp với ${totalRoles} vai trò.`;
+    hostStartGameMultiBtn.disabled = false;
   }
 
   /* ===================================================
@@ -915,6 +1068,18 @@
   function handleHostStartGameMulti() {
     const clients = Object.values(window.networkManager.clients);
     const n = clients.length;
+    const targetCount = state.hostTargetPlayerCount;
+    const totalRoles = Object.values(state.hostRoles).reduce((a, b) => a + b, 0);
+
+    if (totalRoles !== targetCount) {
+      alert(`Tổng vai trò (${totalRoles}) chưa khớp với mục tiêu (${targetCount}). Vui lòng kiểm tra lại bảng phân vai trò!`);
+      return;
+    }
+
+    if (n < targetCount) {
+      alert(`Chưa đủ người chơi! Phòng yêu cầu ${targetCount} người, hiện mới có ${n} người đã vào.`);
+      return;
+    }
 
     if (n < 5) {
       alert("Cần tối thiểu 5 người chơi để bắt đầu!");
@@ -931,7 +1096,7 @@
         if (hostStartBtnIcon) hostStartBtnIcon.textContent = '⏳';
         if (hostStartBtnText) hostStartBtnText.textContent = `ĐANG CHỜ CÁC MÁY CHỌN BÀI (${pickedCount}/${n})...`;
 
-        const allowedRoles = Object.keys(state.roles).filter(r => state.roles[r] > 0);
+        const allowedRoles = Object.keys(state.hostRoles).filter(r => state.hostRoles[r] > 0);
         window.networkManager.broadcastToClients({
           type: 'START_ROLE_SELECTION_CLIENT',
           data: { allowedRoles: allowedRoles }
@@ -952,7 +1117,7 @@
     } else {
       // Chế độ Online: Hệ thống tự động shuffle và chia ngẫu nhiên
       const pool = [];
-      for (const [role, count] of Object.entries(state.roles)) {
+      for (const [role, count] of Object.entries(state.hostRoles)) {
         for (let i = 0; i < count; i++) pool.push(role);
       }
       for (let i = pool.length - 1; i > 0; i--) {

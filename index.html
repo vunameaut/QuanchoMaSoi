@@ -228,6 +228,17 @@
             </div>
 
             <div class="form-group">
+              <label for="hostTargetPlayerCountInput" class="form-label">
+                Số lượng người chơi phòng <span class="required">* (Tối thiểu 5 người)</span>:
+              </label>
+              <div class="number-input-row">
+                <button type="button" class="btn-step" id="hostDecreasePlayerBtn">-</button>
+                <input type="number" id="hostTargetPlayerCountInput" min="5" max="30" value="6" class="form-control text-center">
+                <button type="button" class="btn-step" id="hostIncreasePlayerBtn">+</button>
+              </div>
+            </div>
+
+            <div class="form-group">
               <div class="checkbox-label-row">
                 <input type="checkbox" id="enablePasswordCheckbox">
                 <label for="enablePasswordCheckbox" class="form-label mb-0">Đặt mật khẩu phòng (Tùy chọn)</label>
@@ -268,21 +279,128 @@
           <div class="connected-players-section">
             <div class="section-header-inline">
               <h3 class="section-title mb-0">
-                👥 Người chơi đã vào: <span id="connectedCountBadge">0</span> người
+                👥 Người chơi đã vào: <span id="connectedCountBadge">0</span> / <span id="hostLobbyTargetDisplay">6</span>
               </h3>
-              <small class="text-secondary">(Tối thiểu 5 người chơi để bắt đầu)</small>
+              <button type="button" class="btn-text-action" id="hostSyncWithActualConnectedBtn">
+                ⚡ Đặt số người = Người đã vào
+              </button>
             </div>
             <div class="connected-players-grid" id="connectedPlayersGrid">
               <div class="empty-players-hint">Đang chờ người chơi quét mã QR hoặc nhập mã phòng để vào...</div>
             </div>
           </div>
 
-          <!-- Bảng chia vai trò của Host cho ván chơi đa thiết bị -->
+          <!-- KHUNG THIẾT LẬP SỐ LƯỢNG NGƯỜI & BẢNG PHÂN BỔ VAI TRÒ DÀNH CHO HOST -->
           <div class="host-role-config-box">
-            <h4 class="form-label">Phân bổ vai trò cho phòng:</h4>
-            <div class="validation-bar" style="margin-bottom: 12px;">
-              <span>Tổng vai trò: <strong id="hostTotalRolesCount">0</strong> / <strong id="hostConnectedTarget">0</strong></span>
-              <span id="hostRoleValidationMsg" class="validation-message"></span>
+            
+            <!-- Điều chỉnh số lượng người chơi phòng -->
+            <div class="host-player-count-group mb-3">
+              <label for="hostLobbyPlayerCountInput" class="form-label">
+                Số lượng người chơi của phòng:
+              </label>
+              <div class="number-input-row" style="max-width: 260px;">
+                <button type="button" class="btn-step" id="hostLobbyDecPlayerBtn">-</button>
+                <input type="number" id="hostLobbyPlayerCountInput" min="5" max="30" value="6" class="form-control text-center">
+                <button type="button" class="btn-step" id="hostLobbyIncPlayerBtn">+</button>
+              </div>
+            </div>
+
+            <!-- Bảng phân bổ chức năng (Roles) với nút tăng giảm & Auto-balance -->
+            <div class="roles-header-row mt-2">
+              <h4 class="form-label mb-0" style="font-size: 1.05rem;">Phân bổ vai trò (Roles) cho phòng:</h4>
+              <button type="button" class="btn-text-action" id="hostAutoBalanceRolesBtn">⚖️ Cân bằng gợi ý</button>
+            </div>
+            <p class="section-desc mb-2" style="font-size: 0.84rem;">Tăng giảm số lượng từng vai trò sao cho tổng vai trò khớp chính xác với số người chơi của phòng.</p>
+
+            <div class="roles-grid host-roles-grid" id="hostRolesGrid">
+              <div class="role-card" data-role="werewolf">
+                <div class="role-icon-box wolf-bg">🐺</div>
+                <div class="role-info">
+                  <h3 class="role-name">Ma Sói</h3>
+                  <span class="role-desc">Phe Sói • Thức dậy và chọn con mồi</span>
+                </div>
+                <div class="counter-box">
+                  <button type="button" class="counter-btn" data-action="dec" data-role="werewolf" data-scope="host">-</button>
+                  <span class="counter-value" id="host-count-werewolf">1</span>
+                  <button type="button" class="counter-btn" data-action="inc" data-role="werewolf" data-scope="host">+</button>
+                </div>
+              </div>
+
+              <div class="role-card" data-role="seer">
+                <div class="role-icon-box seer-bg">🔮</div>
+                <div class="role-info">
+                  <h3 class="role-name">Tiên Tri</h3>
+                  <span class="role-desc">Phe Dân • Soi danh tính 1 người</span>
+                </div>
+                <div class="counter-box">
+                  <button type="button" class="counter-btn" data-action="dec" data-role="seer" data-scope="host">-</button>
+                  <span class="counter-value" id="host-count-seer">1</span>
+                  <button type="button" class="counter-btn" data-action="inc" data-role="seer" data-scope="host">+</button>
+                </div>
+              </div>
+
+              <div class="role-card" data-role="guard">
+                <div class="role-icon-box guard-bg">🛡️</div>
+                <div class="role-info">
+                  <h3 class="role-name">Bảo Vệ</h3>
+                  <span class="role-desc">Phe Dân • Khiên hộ vệ 1 người</span>
+                </div>
+                <div class="counter-box">
+                  <button type="button" class="counter-btn" data-action="dec" data-role="guard" data-scope="host">-</button>
+                  <span class="counter-value" id="host-count-guard">1</span>
+                  <button type="button" class="counter-btn" data-action="inc" data-role="guard" data-scope="host">+</button>
+                </div>
+              </div>
+
+              <div class="role-card" data-role="witch">
+                <div class="role-icon-box witch-bg">🧪</div>
+                <div class="role-info">
+                  <h3 class="role-name">Phù Thủy</h3>
+                  <span class="role-desc">Phe Dân • 1 bình cứu, 1 bình độc</span>
+                </div>
+                <div class="counter-box">
+                  <button type="button" class="counter-btn" data-action="dec" data-role="witch" data-scope="host">-</button>
+                  <span class="counter-value" id="host-count-witch">1</span>
+                  <button type="button" class="counter-btn" data-action="inc" data-role="witch" data-scope="host">+</button>
+                </div>
+              </div>
+
+              <div class="role-card" data-role="hunter">
+                <div class="role-icon-box hunter-bg">🏹</div>
+                <div class="role-info">
+                  <h3 class="role-name">Thợ Săn</h3>
+                  <span class="role-desc">Phe Dân • Kéo theo 1 kẻ khi chết</span>
+                </div>
+                <div class="counter-box">
+                  <button type="button" class="counter-btn" data-action="dec" data-role="hunter" data-scope="host">-</button>
+                  <span class="counter-value" id="host-count-hunter">0</span>
+                  <button type="button" class="counter-btn" data-action="inc" data-role="hunter" data-scope="host">+</button>
+                </div>
+              </div>
+
+              <div class="role-card" data-role="villager">
+                <div class="role-icon-box villager-bg">👨‍🌾</div>
+                <div class="role-info">
+                  <h3 class="role-name">Dân Làng Thường</h3>
+                  <span class="role-desc">Phe Dân • Suy luận và bỏ phiếu</span>
+                </div>
+                <div class="counter-box">
+                  <button type="button" class="counter-btn" data-action="dec" data-role="villager" data-scope="host">-</button>
+                  <span class="counter-value" id="host-count-villager">2</span>
+                  <button type="button" class="counter-btn" data-action="inc" data-role="villager" data-scope="host">+</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="validation-bar mt-3" style="margin-bottom: 12px;">
+              <div class="summary-stat">
+                <span>Tổng vai trò: <strong id="hostTotalRolesCount" class="highlight-number">6</strong></span>
+                <span class="slash">/</span>
+                <span>Mục tiêu: <strong id="hostConnectedTarget" class="highlight-number">6</strong></span>
+                <span class="slash">|</span>
+                <span>Đã vào: <strong id="hostConnectedActualCount" class="highlight-number">0</strong></span>
+              </div>
+              <div id="hostRoleValidationMsg" class="validation-message"></div>
             </div>
 
             <!-- TÙY CHỌN CHẾ ĐỘ PHÁT VAI TRÒ: OFFLINE (CHỌN BÀI THẬT) VS ONLINE (RANDOM) -->
