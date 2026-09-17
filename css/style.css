@@ -1118,20 +1118,228 @@ body {
 .app-footer { text-align: center; color: var(--text-muted); font-size: 0.82rem; padding-top: 10px; }
 
 /* ===================================================
-   RESPONSIVE DESIGN
+   RESPONSIVE DESIGN & MOBILE-FIRST TOUCH OPTIMIZATIONS
    =================================================== */
+
+/* Tắt hiệu ứng viền xanh nhấp nháy khi chạm trên Android/iOS */
+button, input, select, .role-card, .secret-role-item, .night-target-btn {
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
 @media (max-width: 768px) {
-  .app-container { padding: 16px 14px 40px; gap: 20px; }
-  .app-title { font-size: 1.45rem; }
-  .glass-card { padding: 18px; }
-  .roles-grid { grid-template-columns: 1fr; }
-  .main-action-buttons-row { grid-template-columns: 1fr; }
-  .audio-settings-bar { flex-direction: column; align-items: flex-start; }
-  .clock-display-wrap { width: 230px; height: 230px; }
-  .clock-time-text { font-size: 3.6rem; }
-  .narration-buttons-strip { grid-template-columns: repeat(2, 1fr); }
-  .btn-primary-start { width: 100%; justify-content: center; }
-  .dashboard-header-row { flex-direction: column; align-items: flex-start; }
-  .dashboard-actions { width: 100%; }
-  .dashboard-actions button { flex: 1; justify-content: center; }
+  /* Khung ứng dụng an toàn cho tai thỏ và thanh vuốt Home của iPhone */
+  .app-container {
+    padding: calc(14px + env(safe-area-inset-top, 0px)) 12px calc(40px + env(safe-area-inset-bottom, 0px));
+    gap: 16px;
+  }
+
+  .app-title {
+    font-size: 1.45rem;
+    letter-spacing: 1px;
+  }
+
+  .glass-card {
+    padding: 16px 14px;
+    border-radius: var(--radius-md);
+  }
+
+  /* Bộ đếm người chơi và vai trò dễ bấm hơn bằng ngón tay */
+  .counter-box {
+    gap: 6px;
+    padding: 2px 6px;
+  }
+
+  .counter-btn {
+    width: 38px;
+    height: 38px;
+    font-size: 1.25rem;
+  }
+
+  .counter-value {
+    min-width: 28px;
+    font-size: 1.2rem;
+  }
+
+  /* Form Controls: cỡ chữ tối thiểu 16px để iOS Safari không tự zoom màn hình */
+  .form-control, .form-select-mini, input {
+    font-size: 16px !important;
+  }
+
+  .roles-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .secret-roles-selector-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .main-action-buttons-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .btn-auto-night, .btn-daytime-timer {
+    padding: 15px 16px;
+  }
+
+  .btn-auto-night .btn-icon, .btn-daytime-timer .btn-icon {
+    font-size: 1.8rem;
+  }
+
+  .btn-auto-night strong, .btn-daytime-timer strong {
+    font-size: 1.05rem;
+  }
+
+  /* Thanh cài đặt âm thanh trên di động dạng lưới 2 cột gọn gàng */
+  .audio-settings-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .setting-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    width: 100%;
+  }
+
+  .setting-item label {
+    font-size: 0.78rem;
+  }
+
+  .form-select-mini {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .volume-setting {
+    grid-column: span 2;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .volume-slider {
+    width: 60%;
+  }
+
+  /* Màn hình khóa Chuyền máy (Chống tràn tên dài) */
+  .lock-screen-box {
+    padding: 24px 10px;
+    gap: 14px;
+  }
+
+  .lock-player-name {
+    font-size: clamp(1.3rem, 6vw, 1.8rem);
+    padding: 8px 16px;
+    word-break: break-word;
+    max-width: 90vw;
+  }
+
+  /* Overlay Ban Đêm: Tối ưu không gian cho màn hình nhỏ */
+  .night-overlay {
+    padding: 10px;
+  }
+
+  .night-overlay-content {
+    padding: 18px 14px;
+    max-height: 92vh;
+    overflow-y: auto;
+    gap: 14px;
+  }
+
+  .night-targets-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    max-height: 220px;
+  }
+
+  .night-target-btn {
+    padding: 10px 6px;
+    font-size: 0.88rem;
+  }
+
+  .witch-options-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  /* Đồng Hồ Họp Thảo Luận Toàn Màn Hình */
+  .fullscreen-timer-modal {
+    padding: 12px;
+  }
+
+  .fullscreen-timer-container {
+    gap: 18px;
+  }
+
+  .timer-sun-icon {
+    font-size: 2.5rem;
+  }
+
+  .timer-title {
+    font-size: 1.45rem;
+  }
+
+  .clock-display-wrap {
+    width: min(220px, 62vw);
+    height: min(220px, 62vw);
+  }
+
+  .clock-time-text {
+    font-size: clamp(2.8rem, 11vw, 3.8rem);
+  }
+
+  .timer-presets-row {
+    gap: 6px;
+  }
+
+  .btn-preset-time {
+    padding: 6px 12px;
+    font-size: 0.84rem;
+  }
+
+  .timer-actions-row {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .btn-timer-primary, .btn-timer-secondary {
+    width: 100%;
+    justify-content: center;
+    padding: 12px 20px;
+  }
+
+  /* Nút thao tác Dashboard */
+  .narration-buttons-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .btn-primary-start {
+    width: 100%;
+    justify-content: center;
+    padding: 14px 16px;
+    font-size: 1rem;
+  }
+
+  .dashboard-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .dashboard-actions {
+    width: 100%;
+  }
+
+  .dashboard-actions button {
+    flex: 1;
+    justify-content: center;
+    padding: 10px 8px;
+    font-size: 0.82rem;
+  }
 }
