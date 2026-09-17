@@ -284,11 +284,41 @@
               <span>Tổng vai trò: <strong id="hostTotalRolesCount">0</strong> / <strong id="hostConnectedTarget">0</strong></span>
               <span id="hostRoleValidationMsg" class="validation-message"></span>
             </div>
+
+            <!-- TÙY CHỌN CHẾ ĐỘ PHÁT VAI TRÒ: OFFLINE (CHỌN BÀI THẬT) VS ONLINE (RANDOM) -->
+            <div class="role-dist-selector-row">
+              <label class="form-label">Chế độ phân phát vai trò:</label>
+              <div class="dist-radio-group">
+                <label class="dist-radio-card active" id="labelDistOffline">
+                  <input type="radio" name="multiRoleMode" id="radioDistOffline" value="offline" checked>
+                  <span class="dist-radio-title">🃏 Chơi Offline</span>
+                  <small class="dist-radio-sub">Người chơi tự chọn vai trò trên điện thoại theo lá bài thật trên tay</small>
+                </label>
+                <label class="dist-radio-card" id="labelDistOnline">
+                  <input type="radio" name="multiRoleMode" id="radioDistOnline" value="online">
+                  <span class="dist-radio-title">🎲 Chơi Online</span>
+                  <small class="dist-radio-sub">Hệ thống xáo bài ngẫu nhiên và tự động phát về máy từng người</small>
+                </label>
+              </div>
+            </div>
+
+            <!-- TIẾN ĐỘ CHỌN VAI TRÒ (DÀNH CHO OFFLINE) -->
+            <div id="hostRolePickProgressBox" class="host-progress-box" style="display: none;">
+              <div class="progress-title-row">
+                <span>📋 Tiến độ chọn bài thật của các máy:</span>
+                <strong id="hostRolePickCountBadge">0 / 0</strong>
+              </div>
+              <div class="progress-bar-track">
+                <div id="hostRolePickProgressBar" class="progress-bar-fill" style="width: 0%;"></div>
+              </div>
+              <div id="hostRolePickPlayersList" class="role-pick-tags-grid"></div>
+            </div>
           </div>
 
           <div class="setup-action-wrapper mt-3">
             <button type="button" id="hostStartGameMultiBtn" class="btn-primary-start" disabled>
-              <span>🩸 BẮT ĐẦU VÁN CHƠI (TẤT CẢ THIẾT BỊ)</span>
+              <span id="hostStartBtnIcon">🃏</span>
+              <span id="hostStartBtnText">BẮT ĐẦU CHỌN BÀI THẬT (TẤT CẢ MÁY)</span>
             </button>
           </div>
         </div>
@@ -341,8 +371,34 @@
           <div class="client-life-badge alive" id="clientLifeBadge">💚 Còn sống</div>
         </div>
 
-        <!-- Thẻ Vai Trò Bí Mật Của Cá Nhân (Chỉ người này thấy) -->
-        <div class="client-secret-role-box">
+        <!-- MÀN HÌNH CHỌN VAI TRÒ THEO BÀI THẬT (CHẾ ĐỘ OFFLINE TRÊN ĐIỆN THOẠI) -->
+        <div id="clientRoleSelectionState" class="client-role-selection-box" style="display: none;">
+          <div class="selection-guide-banner">
+            <span class="guide-icon">🃏</span>
+            <div>
+              <h3 class="guide-title">CHỌN VAI TRÒ THEO LÁ BÀI THẬT</h3>
+              <p class="guide-sub">Hãy chạm vào đúng lá bài bạn đang cầm trên tay. Không ai khác thấy bạn chọn gì!</p>
+            </div>
+          </div>
+
+          <div class="client-available-roles-grid" id="clientAvailableRolesGrid">
+            <!-- Dynamically populated roles -->
+          </div>
+
+          <div class="client-selection-status-box" id="clientSelectionStatusBox" style="display: none;">
+            <span>Bạn đang chọn:</span>
+            <strong id="clientChosenRolePreview">Ma Sói</strong>
+          </div>
+
+          <div class="setup-action-wrapper mt-3">
+            <button type="button" id="clientConfirmChosenRoleBtn" class="btn-primary-start" disabled>
+              <span>🔒 XÁC NHẬN VAI TRÒ BÍ MẬT NÀY</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Thẻ Vai Trò Bí Mật Của Cá Nhân (Chỉ người này thấy sau khi nhận/chọn bài) -->
+        <div class="client-secret-role-box" id="clientSecretRoleBox">
           <div class="secret-role-header">
             <span>LÁ BÀI BÍ MẬT CỦA BẠN:</span>
             <button type="button" id="toggleSecretVisibilityBtn" class="btn-text-action">🙈 Ẩn vai trò</button>
@@ -363,13 +419,39 @@
             <div class="sleeping-moon-icon">🌙</div>
             <h3 class="sleeping-title">MÀN ĐÊM BUÔNG XUỐNG</h3>
             <p class="sleeping-desc">Tất cả dân làng nhắm mắt lại. Hãy lắng nghe lời dẫn dắt của Quản trò và chờ điện thoại rung khi đến lượt!</p>
+            <div class="client-night-status-pill mt-3">
+              <span class="pulse-dot"></span>
+              <span id="clientNightStatusText">Quản trò đang điều hành ban đêm...</span>
+            </div>
           </div>
 
           <!-- Trạng thái thức dậy tương tác trên máy riêng -->
           <div id="clientWakingState" class="client-night-state waking" style="display: none;">
+            
+            <!-- ĐỒNG HỒ ĐẾM NGƯỢC THỜI GIAN LƯỢT ĐÊM TRÊN MÁY CON -->
+            <div class="client-countdown-container">
+              <div class="client-countdown-pill">
+                <span class="timer-icon">⏱️</span>
+                <span>Thời gian còn:</span>
+                <strong id="clientCountdownSec" class="countdown-highlight">15</strong>s
+              </div>
+              <div class="client-countdown-track">
+                <div id="clientCountdownBar" class="client-countdown-fill"></div>
+              </div>
+            </div>
+
             <div class="waking-alert-banner">
               <span class="bell-icon">🔔</span>
               <strong id="clientWakeTitle">BẢO VỆ ƠI, ĐẾN LƯỢT BẠN!</strong>
+            </div>
+
+            <!-- BẢNG ĐỒNG ĐỘI SÓI (DÀNH RIÊNG CHO PHE SÓI) -->
+            <div id="clientWolfPanel" class="client-wolf-panel" style="display: none;">
+              <div class="wolf-panel-title">🐺 BẦY SÓI CỦA BẠN:</div>
+              <div class="wolf-teammates-chips" id="clientWolfTeammatesList"></div>
+              <div class="wolf-vote-sync-banner" id="clientWolfVoteSyncBanner" style="display: none;">
+                🐾 Đồng đội của bạn đang chọn: <strong id="clientWolfTargetName"></strong>
+              </div>
             </div>
 
             <p class="waking-instruction" id="clientWakeInstruction">
@@ -386,6 +468,7 @@
               <div class="seer-result-avatar">🔮</div>
               <div class="seer-result-name" id="clientSeerTargetName">Arthur</div>
               <div class="seer-result-verdict" id="clientSeerVerdict">PHE MA SÓI</div>
+              <small class="seer-result-sub">Hãy ghi nhớ kết quả này và nhắm mắt lại</small>
             </div>
 
             <!-- Khung Phù thủy trên máy con -->
@@ -395,10 +478,13 @@
               </div>
               <div class="witch-options-row">
                 <button type="button" id="clientWitchHealBtn" class="btn-potion btn-heal">
-                  <span>💚 Cứu người này</span>
+                  <span>💚 Dùng Bình Cứu</span>
                 </button>
                 <button type="button" id="clientWitchPoisonBtn" class="btn-potion btn-poison">
-                  <span>🧪 Chọn người đầu độc</span>
+                  <span>🧪 Dùng Bình Độc</span>
+                </button>
+                <button type="button" id="clientWitchSkipBtn" class="btn-potion btn-skip">
+                  <span>💤 Bỏ qua lượt</span>
                 </button>
               </div>
               <div id="clientWitchPoisonList" class="client-targets-grid mt-2" style="display: none;"></div>
@@ -406,7 +492,7 @@
 
             <div class="setup-action-wrapper mt-3">
               <button type="button" id="clientConfirmActionBtn" class="btn-primary-start">
-                <span>🔒 XÁC NHẬN & TIẾP TỤC NHẮM MẮT</span>
+                <span>🔒 XÁC NHẬN HÀNH ĐỘNG XONG</span>
               </button>
             </div>
           </div>

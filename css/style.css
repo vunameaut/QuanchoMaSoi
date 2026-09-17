@@ -1478,6 +1478,324 @@ body {
   opacity: 0.5;
 }
 
+/* --- TÙY CHỌN PHÂN VAI TRÒ (HOST LOBBY) --- */
+.role-dist-selector-row {
+  margin: 16px 0 12px;
+}
+
+.dist-radio-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.dist-radio-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.dist-radio-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.dist-radio-card.active {
+  background: rgba(225, 29, 72, 0.15);
+  border-color: #f43f5e;
+  box-shadow: 0 0 16px rgba(225, 29, 72, 0.3);
+}
+
+.dist-radio-card input {
+  display: none;
+}
+
+.dist-radio-title {
+  font-weight: 800;
+  font-size: 1rem;
+  color: #fff;
+}
+
+.dist-radio-sub {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+.host-progress-box {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  margin-top: 14px;
+}
+
+.progress-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+  color: #fbbf24;
+}
+
+.progress-bar-track {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #e11d48, #fbbf24);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.role-pick-tags-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.role-pick-tag {
+  font-size: 0.8rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.role-pick-tag.picked {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: #22c55e;
+  color: #4ade80;
+}
+
+/* --- CLIENT OFFLINE ROLE PICKER --- */
+.client-role-selection-box {
+  margin: 14px 0 20px;
+}
+
+.selection-guide-banner {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+}
+
+.guide-icon {
+  font-size: 2rem;
+}
+
+.guide-title {
+  font-size: 1.05rem;
+  color: #fbbf24;
+  margin-bottom: 2px;
+}
+
+.guide-sub {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.client-available-roles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.client-role-pick-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: center;
+}
+
+.client-role-pick-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.client-role-pick-card.selected {
+  background: rgba(225, 29, 72, 0.2);
+  border-color: #f43f5e;
+  box-shadow: 0 0 16px rgba(244, 63, 94, 0.4);
+  transform: translateY(-2px);
+}
+
+.client-role-pick-icon {
+  font-size: 2.2rem;
+}
+
+.client-role-pick-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #fff;
+}
+
+.client-role-pick-team {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.client-selection-status-box {
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: var(--radius-sm);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.92rem;
+}
+
+.client-selection-status-box strong {
+  color: #38bdf8;
+  font-size: 1.05rem;
+}
+
+/* --- CLIENT COUNTDOWN CONTAINER (IN NIGHT) --- */
+.client-countdown-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.client-countdown-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  border-radius: 999px;
+  padding: 6px 16px;
+  font-size: 0.92rem;
+  color: #fbbf24;
+  margin: 0 auto;
+}
+
+.countdown-highlight {
+  font-size: 1.25rem;
+  font-family: var(--font-heading);
+  color: #f43f5e;
+}
+
+.client-countdown-track {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.client-countdown-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e, #fbbf24, #ef4444);
+  border-radius: 999px;
+  transition: width 1s linear;
+}
+
+/* --- CLIENT WOLF PANEL --- */
+.client-wolf-panel {
+  background: rgba(225, 29, 72, 0.12);
+  border: 1.5px solid rgba(225, 29, 72, 0.4);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  text-align: left;
+}
+
+.wolf-panel-title {
+  font-weight: 800;
+  font-size: 0.88rem;
+  color: #f43f5e;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.wolf-teammates-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wolf-teammate-badge {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid #f43f5e;
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #fff;
+}
+
+.wolf-teammate-badge.is-me {
+  border-color: #38bdf8;
+  color: #38bdf8;
+}
+
+.wolf-vote-sync-banner {
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  color: #fbbf24;
+}
+
+.btn-potion.btn-skip {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text-secondary);
+}
+
+.client-night-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.seer-result-sub {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
 /* ===================================================
    RESPONSIVE DESIGN & MOBILE-FIRST TOUCH OPTIMIZATIONS
    =================================================== */

@@ -41,6 +41,11 @@
 
     // Multi-Device Host & Client State
     connectedClients: [],
+    multiRoleMode: 'offline', // 'offline' (chọn bài thật) | 'online' (chia ngẫu nhiên)
+    hostClientPicks: {}, // { [playerId]: roleKey }
+    clientSelectedRole: null,
+    clientStepCountdownTimer: null,
+    clientStepRemainingSec: 15,
     myClientData: {
       id: null,
       name: '',
@@ -124,6 +129,17 @@
   const hostConnectedTarget = document.getElementById('hostConnectedTarget');
   const hostRoleValidationMsg = document.getElementById('hostRoleValidationMsg');
   const hostStartGameMultiBtn = document.getElementById('hostStartGameMultiBtn');
+  const hostStartBtnIcon = document.getElementById('hostStartBtnIcon');
+  const hostStartBtnText = document.getElementById('hostStartBtnText');
+
+  const radioDistOffline = document.getElementById('radioDistOffline');
+  const radioDistOnline = document.getElementById('radioDistOnline');
+  const labelDistOffline = document.getElementById('labelDistOffline');
+  const labelDistOnline = document.getElementById('labelDistOnline');
+  const hostRolePickProgressBox = document.getElementById('hostRolePickProgressBox');
+  const hostRolePickCountBadge = document.getElementById('hostRolePickCountBadge');
+  const hostRolePickProgressBar = document.getElementById('hostRolePickProgressBar');
+  const hostRolePickPlayersList = document.getElementById('hostRolePickPlayersList');
 
   const clientRoomCodeInput = document.getElementById('clientRoomCodeInput');
   const clientPlayerNameInput = document.getElementById('clientPlayerNameInput');
@@ -135,6 +151,14 @@
   const clientDisplayName = document.getElementById('clientDisplayName');
   const clientSeatBadge = document.getElementById('clientSeatBadge');
   const clientLifeBadge = document.getElementById('clientLifeBadge');
+
+  const clientRoleSelectionState = document.getElementById('clientRoleSelectionState');
+  const clientAvailableRolesGrid = document.getElementById('clientAvailableRolesGrid');
+  const clientSelectionStatusBox = document.getElementById('clientSelectionStatusBox');
+  const clientChosenRolePreview = document.getElementById('clientChosenRolePreview');
+  const clientConfirmChosenRoleBtn = document.getElementById('clientConfirmChosenRoleBtn');
+
+  const clientSecretRoleBox = document.getElementById('clientSecretRoleBox');
   const toggleSecretVisibilityBtn = document.getElementById('toggleSecretVisibilityBtn');
   const clientSecretRoleCard = document.getElementById('clientSecretRoleCard');
   const clientRoleIcon = document.getElementById('clientRoleIcon');
@@ -144,9 +168,18 @@
   const clientTeammatesInfo = document.getElementById('clientTeammatesInfo');
   
   const clientSleepingState = document.getElementById('clientSleepingState');
+  const clientNightStatusText = document.getElementById('clientNightStatusText');
   const clientWakingState = document.getElementById('clientWakingState');
   const clientWakeTitle = document.getElementById('clientWakeTitle');
   const clientWakeInstruction = document.getElementById('clientWakeInstruction');
+  const clientCountdownSec = document.getElementById('clientCountdownSec');
+  const clientCountdownBar = document.getElementById('clientCountdownBar');
+
+  const clientWolfPanel = document.getElementById('clientWolfPanel');
+  const clientWolfTeammatesList = document.getElementById('clientWolfTeammatesList');
+  const clientWolfVoteSyncBanner = document.getElementById('clientWolfVoteSyncBanner');
+  const clientWolfTargetName = document.getElementById('clientWolfTargetName');
+
   const clientTargetsGrid = document.getElementById('clientTargetsGrid');
   const clientSeerRevealBox = document.getElementById('clientSeerRevealBox');
   const clientSeerTargetName = document.getElementById('clientSeerTargetName');
@@ -155,6 +188,7 @@
   const clientWitchVictimName = document.getElementById('clientWitchVictimName');
   const clientWitchHealBtn = document.getElementById('clientWitchHealBtn');
   const clientWitchPoisonBtn = document.getElementById('clientWitchPoisonBtn');
+  const clientWitchSkipBtn = document.getElementById('clientWitchSkipBtn');
   const clientWitchPoisonList = document.getElementById('clientWitchPoisonList');
   const clientConfirmActionBtn = document.getElementById('clientConfirmActionBtn');
   const clientPlayersOverviewList = document.getElementById('clientPlayersOverviewList');
@@ -310,23 +344,51 @@
       state.myClientData.isAlive = true;
       state.players = data.allPlayers;
 
+      // Ẩn màn hình chọn bài (nếu đang mở), hiện thẻ bài bí mật
+      if (clientRoleSelectionState) clientRoleSelectionState.style.display = 'none';
+      if (clientSecretRoleBox) clientSecretRoleBox.style.display = 'block';
+
       const meta = ROLE_META[data.role];
-      clientRoleIcon.textContent = meta.icon;
-      clientRoleName.textContent = meta.name.toUpperCase();
-      clientRoleTeam.textContent = meta.team === 'wolf' ? 'Phe Sói' : 'Phe Dân';
-      clientRoleDesc.textContent = meta.desc;
+      if (meta) {
+        clientRoleIcon.textContent = meta.icon;
+        clientRoleName.textContent = meta.name.toUpperCase();
+        clientRoleTeam.textContent = meta.team === 'wolf' ? 'Phe Sói' : 'Phe Dân';
+        clientRoleDesc.textContent = meta.desc;
+      }
 
       if (data.teammates && data.teammates.length > 0) {
         clientTeammatesInfo.style.display = 'block';
         clientTeammatesInfo.textContent = `🐺 Đồng đội Sói của bạn: ${data.teammates.join(', ')}`;
+      } else {
+        clientTeammatesInfo.style.display = 'none';
       }
 
       renderClientPlayersOverview();
     });
 
+    // Host: Khi nhận vai trò từ một Client chọn theo bài thật (Offline)
+    window.networkManager.on('onRoleChosenReceived', (data) => {
+      handleHostReceivedRolePick(data);
+    });
+
+    // Client: Khi Host mở giai đoạn chọn vai trò theo bài thật
+    window.networkManager.on('onStartRoleSelection', (data) => {
+      handleClientStartRoleSelection(data);
+    });
+
+    // Client: Khi một con sói trong bầy vote con mồi
+    window.networkManager.on('onWolfVoteSync', (data) => {
+      handleClientWolfVoteSync(data);
+    });
+
     // Client: Nhận tín hiệu ban đêm từ Host
     window.networkManager.on('onNightStepReceived', (stepData) => {
       handleClientNightStep(stepData);
+    });
+
+    // Client: Đồng bộ đồng hồ thảo luận ban ngày
+    window.networkManager.on('onTimerSyncReceived', (data) => {
+      handleClientTimerSync(data);
     });
 
     // Client: Nhận tín hiệu đồng bộ buổi sáng từ Host
@@ -440,10 +502,67 @@
     copyShareLinkBtn.addEventListener('click', copyShareRoomLink);
     hostStartGameMultiBtn.addEventListener('click', handleHostStartGameMulti);
 
-    // Multi-Device: Client vào phòng
+    // Multi-Device: Chọn chế độ phân vai trò (Offline vs Online)
+    if (radioDistOffline && radioDistOnline) {
+      radioDistOffline.addEventListener('change', () => setMultiRoleMode('offline'));
+      radioDistOnline.addEventListener('change', () => setMultiRoleMode('online'));
+    }
+    if (labelDistOffline) {
+      labelDistOffline.addEventListener('click', () => {
+        if (radioDistOffline) radioDistOffline.checked = true;
+        setMultiRoleMode('offline');
+      });
+    }
+    if (labelDistOnline) {
+      labelDistOnline.addEventListener('click', () => {
+        if (radioDistOnline) radioDistOnline.checked = true;
+        setMultiRoleMode('online');
+      });
+    }
+
+    // Multi-Device: Client vào phòng và thao tác cá nhân
     clientJoinRoomSubmitBtn.addEventListener('click', handleClientJoinRoomSubmit);
     toggleSecretVisibilityBtn.addEventListener('click', toggleClientSecretVisibility);
     clientConfirmActionBtn.addEventListener('click', clientConfirmNightDone);
+
+    if (clientConfirmChosenRoleBtn) {
+      clientConfirmChosenRoleBtn.addEventListener('click', handleClientConfirmChosenRole);
+    }
+
+    if (clientWitchHealBtn) {
+      clientWitchHealBtn.addEventListener('click', () => {
+        clientWitchHealBtn.classList.add('selected');
+        window.networkManager.sendNightActionToHost({ role: 'witch', witchHeal: true });
+        clientConfirmNightDone();
+      });
+    }
+
+    if (clientWitchPoisonBtn) {
+      clientWitchPoisonBtn.addEventListener('click', () => {
+        clientWitchPoisonList.style.display = 'grid';
+        clientWitchPoisonList.innerHTML = '';
+        state.players.filter(p => p.isAlive).forEach(target => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'night-target-btn';
+          btn.innerHTML = `<span>🧪 ${target.name}</span>`;
+          btn.addEventListener('click', () => {
+            clientWitchPoisonList.querySelectorAll('.night-target-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            window.networkManager.sendNightActionToHost({ role: 'witch', witchPoisonTargetId: target.id });
+            clientConfirmNightDone();
+          });
+          clientWitchPoisonList.appendChild(btn);
+        });
+      });
+    }
+
+    if (clientWitchSkipBtn) {
+      clientWitchSkipBtn.addEventListener('click', () => {
+        window.networkManager.sendNightActionToHost({ role: 'witch', witchHeal: false });
+        clientConfirmNightDone();
+      });
+    }
 
     // 1. Setup Phase Chơi 1 máy
     playerCountInput.addEventListener('input', () => {
@@ -737,34 +856,124 @@
   }
 
   /* ===================================================
-     MULTI-DEVICE: HOST BẮT ĐẦU VÁN CHƠI & GỬI VAI TRÒ BÍ MẬT
+     MULTI-DEVICE: HOST QUẢN LÝ VAI TRÒ & BẮT ĐẦU VÁN CHƠI
      =================================================== */
+  function setMultiRoleMode(mode) {
+    state.multiRoleMode = mode;
+    if (mode === 'offline') {
+      if (labelDistOffline) labelDistOffline.classList.add('active');
+      if (labelDistOnline) labelDistOnline.classList.remove('active');
+      if (hostStartBtnIcon) hostStartBtnIcon.textContent = '🃏';
+      if (hostStartBtnText) hostStartBtnText.textContent = 'BẮT ĐẦU CHỌN BÀI THẬT (TẤT CẢ MÁY)';
+    } else {
+      if (labelDistOnline) labelDistOnline.classList.add('active');
+      if (labelDistOffline) labelDistOffline.classList.remove('active');
+      if (hostStartBtnIcon) hostStartBtnIcon.textContent = '🎲';
+      if (hostStartBtnText) hostStartBtnText.textContent = 'BẮT ĐẦU VÁN CHƠI (TỰ ĐỘNG CHIA)';
+      if (hostRolePickProgressBox) hostRolePickProgressBox.style.display = 'none';
+    }
+  }
+
+  function renderHostRolePickProgress() {
+    const clients = Object.values(window.networkManager.clients);
+    const total = clients.length;
+    const pickedCount = Object.keys(state.hostClientPicks).length;
+
+    if (hostRolePickCountBadge) hostRolePickCountBadge.textContent = `${pickedCount} / ${total}`;
+    const pct = total > 0 ? Math.round((pickedCount / total) * 100) : 0;
+    if (hostRolePickProgressBar) hostRolePickProgressBar.style.width = `${pct}%`;
+
+    if (hostRolePickPlayersList) {
+      hostRolePickPlayersList.innerHTML = '';
+      clients.forEach(c => {
+        const isPicked = !!state.hostClientPicks[c.id];
+        const tag = document.createElement('div');
+        tag.className = `role-pick-tag ${isPicked ? 'picked' : ''}`;
+        tag.innerHTML = `<span>${isPicked ? '✅' : '⏳'}</span> <span>${c.name}</span>`;
+        hostRolePickPlayersList.appendChild(tag);
+      });
+    }
+  }
+
+  function handleHostReceivedRolePick(data) {
+    state.hostClientPicks[data.playerId] = data.role;
+    renderHostRolePickProgress();
+
+    const total = Object.keys(window.networkManager.clients).length;
+    const pickedCount = Object.keys(state.hostClientPicks).length;
+
+    if (pickedCount >= total && total >= 5) {
+      hostStartGameMultiBtn.disabled = false;
+      if (hostStartBtnIcon) hostStartBtnIcon.textContent = '🩸';
+      if (hostStartBtnText) hostStartBtnText.textContent = 'TẤT CẢ ĐÃ CHỌN XONG - BẮT ĐẦU VÁN CHƠI';
+      logGameEvent(`Tất cả ${total} người chơi đã chọn xong vai trò theo bài thật!`, 'info');
+    } else {
+      if (hostStartBtnText) hostStartBtnText.textContent = `⏳ ĐANG CHỜ CÁC MÁY CHỌN BÀI (${pickedCount}/${total})...`;
+    }
+  }
+
   function handleHostStartGameMulti() {
     const clients = Object.values(window.networkManager.clients);
     const n = clients.length;
 
-    // Sinh pool vai trò và shuffle
-    const pool = [];
-    for (const [role, count] of Object.entries(state.roles)) {
-      for (let i = 0; i < count; i++) pool.push(role);
-    }
-    for (let i = pool.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [pool[i], pool[j]] = [pool[j], pool[i]];
+    if (n < 5) {
+      alert("Cần tối thiểu 5 người chơi để bắt đầu!");
+      return;
     }
 
-    state.players = clients.map((c, idx) => ({
-      id: c.id,
-      name: c.name,
-      role: pool[idx],
-      isAlive: true,
-      conn: c.conn
-    }));
+    if (state.multiRoleMode === 'offline') {
+      const pickedCount = Object.keys(state.hostClientPicks).length;
+      if (pickedCount < n) {
+        // Mở giai đoạn chọn vai trò theo bài thật trên điện thoại từng người
+        if (hostRolePickProgressBox) hostRolePickProgressBox.style.display = 'block';
+        renderHostRolePickProgress();
+        hostStartGameMultiBtn.disabled = true;
+        if (hostStartBtnIcon) hostStartBtnIcon.textContent = '⏳';
+        if (hostStartBtnText) hostStartBtnText.textContent = `ĐANG CHỜ CÁC MÁY CHỌN BÀI (${pickedCount}/${n})...`;
+
+        const allowedRoles = Object.keys(state.roles).filter(r => state.roles[r] > 0);
+        window.networkManager.broadcastToClients({
+          type: 'START_ROLE_SELECTION_CLIENT',
+          data: { allowedRoles: allowedRoles }
+        });
+
+        logGameEvent(`Quản trò đã gửi yêu cầu: Mọi người chơi tự chọn vai trò trên điện thoại theo lá bài thật trên tay.`, 'info');
+        return;
+      }
+
+      // Khi tất cả đã chọn xong trên máy mình
+      state.players = clients.map(c => ({
+        id: c.id,
+        name: c.name,
+        role: state.hostClientPicks[c.id] || 'villager',
+        isAlive: true,
+        conn: c.conn
+      }));
+    } else {
+      // Chế độ Online: Hệ thống tự động shuffle và chia ngẫu nhiên
+      const pool = [];
+      for (const [role, count] of Object.entries(state.roles)) {
+        for (let i = 0; i < count; i++) pool.push(role);
+      }
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+
+      state.players = clients.map((c, idx) => ({
+        id: c.id,
+        name: c.name,
+        role: pool[idx],
+        isAlive: true,
+        conn: c.conn
+      }));
+    }
 
     // Tìm danh sách Ma Sói để báo đồng đội
-    const wolfNames = state.players.filter(p => p.role === 'werewolf').map(p => p.name);
+    const wolfMembers = state.players.filter(p => p.role === 'werewolf').map(p => ({ id: p.id, name: p.name, isAlive: p.isAlive }));
+    const wolfNames = wolfMembers.map(p => p.name);
 
-    // Gửi vai trò bí mật cho từng Client
+    // Gửi vai trò bí mật và danh sách đồng đội cho từng Client
     state.players.forEach(p => {
       const payload = {
         type: 'GAME_STARTED_CLIENT',
@@ -832,10 +1041,92 @@
     }
   }
 
+  function handleClientStartRoleSelection(data) {
+    if (clientSecretRoleBox) clientSecretRoleBox.style.display = 'none';
+    if (clientRoleSelectionState) clientRoleSelectionState.style.display = 'block';
+
+    clientAvailableRolesGrid.innerHTML = '';
+    state.clientSelectedRole = null;
+    clientConfirmChosenRoleBtn.disabled = true;
+    clientConfirmChosenRoleBtn.innerHTML = `<span>🔒 XÁC NHẬN VAI TRÒ BÍ MẬT NÀY</span>`;
+    if (clientSelectionStatusBox) clientSelectionStatusBox.style.display = 'none';
+
+    const roles = (data && data.allowedRoles && data.allowedRoles.length > 0) ? data.allowedRoles : Object.keys(ROLE_META);
+    roles.forEach(roleKey => {
+      const meta = ROLE_META[roleKey];
+      if (!meta) return;
+
+      const card = document.createElement('div');
+      card.className = 'client-role-pick-card';
+      card.dataset.role = roleKey;
+      card.innerHTML = `
+        <span class="client-role-pick-icon">${meta.icon}</span>
+        <strong class="client-role-pick-name">${meta.name}</strong>
+        <span class="client-role-pick-team">${meta.team === 'wolf' ? 'Phe Sói' : 'Phe Dân'}</span>
+      `;
+
+      card.addEventListener('click', () => {
+        clientAvailableRolesGrid.querySelectorAll('.client-role-pick-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        state.clientSelectedRole = roleKey;
+
+        if (clientSelectionStatusBox) clientSelectionStatusBox.style.display = 'flex';
+        if (clientChosenRolePreview) clientChosenRolePreview.textContent = `${meta.icon} ${meta.name}`;
+        clientConfirmChosenRoleBtn.disabled = false;
+      });
+
+      clientAvailableRolesGrid.appendChild(card);
+    });
+  }
+
+  function handleClientConfirmChosenRole() {
+    if (!state.clientSelectedRole) return;
+
+    window.networkManager.sendRoleChosenToHost(state.clientSelectedRole);
+    state.myClientData.role = state.clientSelectedRole;
+
+    clientConfirmChosenRoleBtn.disabled = true;
+    clientConfirmChosenRoleBtn.innerHTML = `<span>✅ ĐÃ ĐĂNG KÝ VAI TRÒ! ĐANG CHỜ QUẢN TRÒ BẮT ĐẦU VÁN...</span>`;
+
+    const meta = ROLE_META[state.clientSelectedRole];
+    if (meta) {
+      clientRoleIcon.textContent = meta.icon;
+      clientRoleName.textContent = meta.name.toUpperCase();
+      clientRoleTeam.textContent = meta.team === 'wolf' ? 'Phe Sói' : 'Phe Dân';
+      clientRoleDesc.textContent = meta.desc;
+    }
+  }
+
+  function handleClientWolfVoteSync(data) {
+    if (state.myClientData.role === 'werewolf') {
+      if (clientWolfVoteSyncBanner && clientWolfTargetName) {
+        clientWolfVoteSyncBanner.style.display = 'block';
+        clientWolfTargetName.textContent = `${data.wolfPlayerName} đang chọn cắn: ${data.targetName}`;
+      }
+    }
+  }
+
+  function handleClientTimerSync(data) {
+    if (state.gameMode === 'multi_client') {
+      const mins = Math.floor(data.remainingSeconds / 60);
+      const secs = data.remainingSeconds % 60;
+      const formatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      if (clientNightStatusText) {
+        clientNightStatusText.textContent = `☀️ Đang thảo luận ban ngày: ${formatted}`;
+      }
+    }
+  }
+
   function handleClientNightStep(stepData) {
-    const { activeRole, victimName, aliveTargets } = stepData;
+    const { activeRole, victimName, aliveTargets, duration = 15, wolfMembers = [] } = stepData;
     const myRole = state.myClientData.role;
     const isAlive = state.myClientData.isAlive;
+
+    // Reset countdown timer cũ nếu đang chạy
+    if (state.clientStepCountdownTimer) {
+      clearInterval(state.clientStepCountdownTimer);
+      state.clientStepCountdownTimer = null;
+    }
 
     // Rung nhẹ khi đến lượt vai trò của người chơi
     if (myRole === activeRole && isAlive) {
@@ -847,51 +1138,125 @@
       clientWakingState.style.display = 'block';
 
       const meta = ROLE_META[activeRole];
-      clientWakeTitle.textContent = `${meta.name.toUpperCase()} ƠI, ĐẾN LƯỢT BẠN!`;
+      clientWakeTitle.textContent = `${meta ? meta.name.toUpperCase() : 'BẠN'} ƠI, ĐẾN LƯỢT BẠN!`;
       clientTargetsGrid.style.display = 'grid';
       clientSeerRevealBox.style.display = 'none';
       clientWitchBox.style.display = 'none';
 
-      if (activeRole === 'witch') {
+      // Khởi động đồng hồ đếm ngược trên máy con
+      state.clientStepRemainingSec = duration;
+      if (clientCountdownSec) clientCountdownSec.textContent = state.clientStepRemainingSec;
+      if (clientCountdownBar) clientCountdownBar.style.width = '100%';
+
+      const totalSec = duration;
+      state.clientStepCountdownTimer = setInterval(() => {
+        if (state.clientStepRemainingSec > 0) {
+          state.clientStepRemainingSec -= 1;
+          if (clientCountdownSec) clientCountdownSec.textContent = state.clientStepRemainingSec;
+          const pct = Math.round((state.clientStepRemainingSec / totalSec) * 100);
+          if (clientCountdownBar) clientCountdownBar.style.width = `${pct}%`;
+
+          if (state.clientStepRemainingSec === 0) {
+            clearInterval(state.clientStepCountdownTimer);
+            clientConfirmNightDone();
+          }
+        }
+      }, 1000);
+
+      // Giao diện riêng cho từng vai trò
+      if (activeRole === 'werewolf') {
+        // Hiển thị bầy Sói và danh sách đồng đội
+        if (clientWolfPanel) {
+          clientWolfPanel.style.display = 'block';
+          clientWolfTeammatesList.innerHTML = '';
+          if (clientWolfVoteSyncBanner) clientWolfVoteSyncBanner.style.display = 'none';
+
+          wolfMembers.forEach(wm => {
+            const badge = document.createElement('div');
+            const isMe = wm.id === state.myClientData.id;
+            badge.className = `wolf-teammate-badge ${isMe ? 'is-me' : ''}`;
+            badge.innerHTML = `<span>🐺</span> <span>${wm.name} ${isMe ? '(Bạn)' : ''}</span>`;
+            clientWolfTeammatesList.appendChild(badge);
+          });
+        }
+
+        renderClientTargets(aliveTargets, activeRole, wolfMembers);
+      } else if (activeRole === 'witch') {
+        if (clientWolfPanel) clientWolfPanel.style.display = 'none';
         clientTargetsGrid.style.display = 'none';
         clientWitchBox.style.display = 'flex';
-        clientWitchVictimName.textContent = victimName || 'Không có ai';
+        clientWitchVictimName.textContent = victimName || 'Không có ai bị cắn';
+
+        // Cập nhật trạng thái các bình cứu và bình độc
+        clientWitchHealBtn.disabled = !stepData.witchHealAvailable || !victimName;
+        clientWitchPoisonBtn.disabled = !stepData.witchPoisonAvailable;
       } else {
-        renderClientTargets(aliveTargets, activeRole);
+        if (clientWolfPanel) clientWolfPanel.style.display = 'none';
+        renderClientTargets(aliveTargets, activeRole, wolfMembers);
       }
     } else {
       clientWakingState.style.display = 'none';
       clientSleepingState.style.display = 'block';
+      if (clientNightStatusText) {
+        if (activeRole === 'none') {
+          clientNightStatusText.textContent = 'Màn đêm buông xuống... Tất cả nhắm mắt lại.';
+        } else {
+          const roleMeta = ROLE_META[activeRole];
+          clientNightStatusText.textContent = `Quản trò đang gọi: ${roleMeta ? roleMeta.name : 'vai trò bí mật'}. Hãy nhắm mắt tĩnh lặng!`;
+        }
+      }
     }
   }
 
-  function renderClientTargets(aliveTargets = [], roleKey) {
+  function renderClientTargets(aliveTargets = [], roleKey, wolfMembers = []) {
     clientTargetsGrid.innerHTML = '';
+    const wolfIds = (wolfMembers || []).map(w => w.id);
 
     aliveTargets.forEach(target => {
+      const isWolfTeammate = roleKey === 'werewolf' && wolfIds.includes(target.id);
+      const isSelf = target.id === state.myClientData.id;
+
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'night-target-btn';
-      btn.innerHTML = `<span>🧑 ${target.name}</span><small>#${target.id}</small>`;
+      btn.className = `night-target-btn ${isWolfTeammate ? 'disabled-target' : ''}`;
+      
+      if (isWolfTeammate) {
+        btn.innerHTML = `<span>🐺 ${target.name}</span><small>${isSelf ? '(Bạn)' : '(Đồng đội Sói)'}</small>`;
+        btn.style.opacity = '0.5';
+        btn.style.pointerEvents = 'none';
+      } else {
+        btn.innerHTML = `<span>🧑 ${target.name}</span><small>#${target.id}</small>`;
+      }
 
       btn.addEventListener('click', () => {
         clientTargetsGrid.querySelectorAll('.night-target-btn').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
 
-        if (roleKey === 'seer') {
-          // Tiên tri thấy kết quả
+        if (roleKey === 'werewolf') {
+          // Báo cho Host và đồng bộ vote cho các con sói khác
+          window.networkManager.sendWolfVoteToHost(target.id, target.name);
+          window.networkManager.sendNightActionToHost({
+            role: 'werewolf',
+            targetId: target.id
+          });
+        } else if (roleKey === 'seer') {
           clientTargetsGrid.style.display = 'none';
           clientSeerRevealBox.style.display = 'flex';
           clientSeerTargetName.textContent = target.name;
           const isWolf = target.team === 'wolf';
           clientSeerVerdict.className = `seer-result-verdict ${isWolf ? 'wolf' : 'villager'}`;
           clientSeerVerdict.textContent = isWolf ? 'PHE MA SÓI 🐺' : 'PHE DÂN LÀNG 🛡️';
-        }
 
-        window.networkManager.sendNightActionToHost({
-          role: roleKey,
-          targetId: target.id
-        });
+          window.networkManager.sendNightActionToHost({
+            role: 'seer',
+            targetId: target.id
+          });
+        } else {
+          window.networkManager.sendNightActionToHost({
+            role: roleKey,
+            targetId: target.id
+          });
+        }
       });
 
       clientTargetsGrid.appendChild(btn);
@@ -899,6 +1264,10 @@
   }
 
   function clientConfirmNightDone() {
+    if (state.clientStepCountdownTimer) {
+      clearInterval(state.clientStepCountdownTimer);
+      state.clientStepCountdownTimer = null;
+    }
     clientWakingState.style.display = 'none';
     clientSleepingState.style.display = 'block';
   }
@@ -1372,7 +1741,7 @@
     // BƯỚC 2: BẢO VỆ
     const hasGuardAlive = state.players.some(p => p.role === 'guard' && p.isAlive);
     if (hasGuardAlive) {
-      broadcastNightStepToClients('guard');
+      broadcastNightStepToClients('guard', { duration: 15, title: 'BẢO VỆ THỨC DẬY' });
       await runNightRoleStep({
         roleKey: 'guard',
         title: 'BẢO VỆ THỨC DẬY',
@@ -1391,7 +1760,7 @@
     // BƯỚC 3: MA SÓI
     const hasWolfAlive = state.players.some(p => p.role === 'werewolf' && p.isAlive);
     if (hasWolfAlive) {
-      broadcastNightStepToClients('werewolf');
+      broadcastNightStepToClients('werewolf', { duration: 20, title: 'MA SÓI THỨC DẬY' });
       await runNightRoleStep({
         roleKey: 'werewolf',
         title: 'MA SÓI THỨC DẬY',
@@ -1410,7 +1779,7 @@
     // BƯỚC 4: TIÊN TRI
     const hasSeerAlive = state.players.some(p => p.role === 'seer' && p.isAlive);
     if (hasSeerAlive) {
-      broadcastNightStepToClients('seer');
+      broadcastNightStepToClients('seer', { duration: 18, title: 'TIÊN TRI THỨC DẬY' });
       await runNightRoleStep({
         roleKey: 'seer',
         title: 'TIÊN TRI THỨC DẬY',
@@ -1428,7 +1797,7 @@
     const hasWitchAlive = state.players.some(p => p.role === 'witch' && p.isAlive);
     if (hasWitchAlive) {
       const victim = state.players.find(p => p.id === state.nightPicks.attackedPlayerId);
-      broadcastNightStepToClients('witch', victim ? victim.name : null);
+      broadcastNightStepToClients('witch', { duration: 20, title: 'PHÙ THỦY THỨC DẬY', victimName: victim ? victim.name : null });
 
       await runNightRoleStep({
         roleKey: 'witch',
@@ -1462,20 +1831,32 @@
     state.isAutoNightRunning = false;
   }
 
-  function broadcastNightStepToClients(roleKey, victimName = null) {
+  function broadcastNightStepToClients(roleKey, options = {}) {
     if (state.gameMode === 'multi_host' && window.networkManager) {
       const aliveTargets = state.players.filter(p => p.isAlive).map(p => ({
         id: p.id,
         name: p.name,
+        role: p.role,
         team: ROLE_META[p.role]?.team || 'villager'
+      }));
+
+      const wolfMembers = state.players.filter(p => p.role === 'werewolf').map(p => ({
+        id: p.id,
+        name: p.name,
+        isAlive: p.isAlive
       }));
 
       window.networkManager.broadcastToClients({
         type: 'NIGHT_STEP_CLIENT',
         data: {
           activeRole: roleKey,
-          victimName: victimName,
-          aliveTargets: aliveTargets
+          stepTitle: options.title || '',
+          duration: options.duration || 15,
+          victimName: options.victimName || null,
+          aliveTargets: aliveTargets,
+          wolfMembers: wolfMembers,
+          witchHealAvailable: !state.witchHealUsed,
+          witchPoisonAvailable: !state.witchPoisonUsed
         }
       });
     }
@@ -1740,6 +2121,17 @@
     const mins = Math.floor(state.discussionRemainingSeconds / 60);
     const secs = state.discussionRemainingSeconds % 60;
     fullscreenClockTime.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+    if (state.gameMode === 'multi_host' && window.networkManager) {
+      window.networkManager.broadcastToClients({
+        type: 'TIMER_SYNC_CLIENT',
+        data: {
+          remainingSeconds: state.discussionRemainingSeconds,
+          totalSeconds: state.discussionTotalSeconds,
+          isRunning: state.isTimerRunning
+        }
+      });
+    }
 
     if (state.discussionRemainingSeconds <= 10 && state.discussionRemainingSeconds > 0) {
       clockRingOuter.classList.add('warning');

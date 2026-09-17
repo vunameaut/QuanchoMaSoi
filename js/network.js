@@ -27,9 +27,13 @@ class WerewolfNetworkManager {
       onPlayerLeft: null,
       onJoinAccepted: null,
       onJoinRejected: null,
+      onStartRoleSelection: null,
+      onRoleChosenReceived: null,
+      onRoleProgressReceived: null,
       onGameStarted: null,
       onNightStepReceived: null,
       onNightActionReceived: null,
+      onWolfVoteSync: null,
       onMorningSyncReceived: null,
       onTimerSyncReceived: null,
       onError: null
@@ -117,6 +121,17 @@ class WerewolfNetworkManager {
     switch (msg.type) {
       case 'CLIENT_JOIN_REQUEST':
         this.handleClientJoinRequest(msg.data, senderConn);
+        break;
+      case 'CLIENT_ROLE_CHOSEN':
+        this.emit('onRoleChosenReceived', msg.data);
+        break;
+      case 'CLIENT_WOLF_VOTE':
+        this.emit('onWolfVoteReceived', msg.data);
+        // Chuyển tiếp phiếu của sói cho các con sói khác
+        this.broadcastToClients({
+          type: 'WOLF_VOTE_SYNC',
+          data: msg.data
+        });
         break;
       case 'CLIENT_NIGHT_ACTION':
         this.emit('onNightActionReceived', msg.data);
@@ -261,11 +276,20 @@ class WerewolfNetworkManager {
       case 'ROOM_PLAYERS_UPDATE':
         this.emit('onPlayerJoined', msg.data);
         break;
+      case 'START_ROLE_SELECTION_CLIENT':
+        this.emit('onStartRoleSelection', msg.data);
+        break;
+      case 'HOST_ROLE_PROGRESS_UPDATE':
+        this.emit('onRoleProgressReceived', msg.data);
+        break;
       case 'GAME_STARTED_CLIENT':
         this.emit('onGameStarted', msg.data);
         break;
       case 'NIGHT_STEP_CLIENT':
         this.emit('onNightStepReceived', msg.data);
+        break;
+      case 'WOLF_VOTE_SYNC':
+        this.emit('onWolfVoteSync', msg.data);
         break;
       case 'MORNING_SYNC_CLIENT':
         this.emit('onMorningSyncReceived', msg.data);
@@ -316,6 +340,49 @@ class WerewolfNetworkManager {
         playerId: this.localPlayerId,
         playerName: this.localPlayerName,
         ...actionData
+      }
+    };
+
+    if (this.hostConn && this.hostConn.open) {
+      this.hostConn.send(payload);
+    }
+    if (this.broadcastChannel) {
+      this.broadcastChannel.postMessage(payload);
+    }
+  }
+
+  /**
+   * Client gửi vai trò đã tự chọn (Chế độ Offline) về máy Host
+   */
+  sendRoleChosenToHost(chosenRole) {
+    const payload = {
+      type: 'CLIENT_ROLE_CHOSEN',
+      data: {
+        playerId: this.localPlayerId,
+        playerName: this.localPlayerName,
+        role: chosenRole
+      }
+    };
+
+    if (this.hostConn && this.hostConn.open) {
+      this.hostConn.send(payload);
+    }
+    if (this.broadcastChannel) {
+      this.broadcastChannel.postMessage(payload);
+    }
+  }
+
+  /**
+   * Ma Sói gửi phiếu vote con mồi về Host để đồng bộ cho bầy sói
+   */
+  sendWolfVoteToHost(targetId, targetName) {
+    const payload = {
+      type: 'CLIENT_WOLF_VOTE',
+      data: {
+        wolfPlayerId: this.localPlayerId,
+        wolfPlayerName: this.localPlayerName,
+        targetId: targetId,
+        targetName: targetName
       }
     };
 
