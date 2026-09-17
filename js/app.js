@@ -88,11 +88,23 @@
     finishCurrentNightStep: null,
     nightStepCompletedEarly: false,
 
-    // Morning Discussion Timer State
+    // Game Timers Settings (Cấu hình thời gian cho các giai đoạn)
+    timers: {
+      nightRoleSeconds: 15,
+      dayDiscussionSeconds: 180,
+      defenseSeconds: 60
+    },
+
+    // Werewolf Voting & Tie Resolution
+    werewolfVotes: {}, // { [wolfPlayerId]: targetId }
+    werewolfTiedVote: false,
+
+    // Morning Discussion & Defense Timer State
     discussionTotalSeconds: 180,
     discussionRemainingSeconds: 180,
     isTimerRunning: false,
-    timerInterval: null
+    timerInterval: null,
+    currentTimerMode: 'discussion' // 'discussion' | 'defense'
   };
 
   const SAMPLE_NAMES = [
@@ -299,11 +311,21 @@
   const add30SecBtn = document.getElementById('add30SecBtn');
   const presetTimeButtons = document.querySelectorAll('.btn-preset-time[data-minutes]');
 
+  // DOM Elements - Game Timers Setup & Defense Timer
+  const nightRoleTimerInput = document.getElementById('nightRoleTimerInput');
+  const dayDiscussionTimerInput = document.getElementById('dayDiscussionTimerInput');
+  const defenseTimerInput = document.getElementById('defenseTimerInput');
+  const resetDefaultTimersBtn = document.getElementById('resetDefaultTimersBtn');
+  const btnStepTimers = document.querySelectorAll('.btn-step-timer');
+  const openDefenseTimerBtn = document.getElementById('openDefenseTimerBtn');
+  const presetDefenseBtn = document.getElementById('presetDefenseBtn');
+
   /**
    * Khởi tạo ứng dụng
    */
   function init() {
     setupEventListeners();
+    setupTimersListeners();
     setupAudioCallbacks();
     setupNetworkListeners();
     initVoiceDropdown();
@@ -776,6 +798,100 @@
       gameLogContent.innerHTML = '';
       logGameEvent("Nhật ký đã được xóa.", "info");
     });
+  }
+
+  /* ===================================================
+     CÀI ĐẶT THỜI GIAN (GAME TIMERS LISTENERS)
+     =================================================== */
+  function setupTimersListeners() {
+    // 1. Chức năng ban đêm
+    if (nightRoleTimerInput) {
+      nightRoleTimerInput.addEventListener('change', (e) => {
+        let val = parseInt(e.target.value, 10);
+        if (isNaN(val) || val < 5) val = 5;
+        if (val > 180) val = 180;
+        state.timers.nightRoleSeconds = val;
+        e.target.value = val;
+      });
+    }
+
+    // 2. Thảo luận ban ngày
+    if (dayDiscussionTimerInput) {
+      dayDiscussionTimerInput.addEventListener('change', (e) => {
+        let val = parseInt(e.target.value, 10);
+        if (isNaN(val) || val < 10) val = 10;
+        if (val > 1200) val = 1200;
+        state.timers.dayDiscussionSeconds = val;
+        state.discussionTotalSeconds = val;
+        e.target.value = val;
+      });
+    }
+
+    // 3. Thời gian biện hộ
+    if (defenseTimerInput) {
+      defenseTimerInput.addEventListener('change', (e) => {
+        let val = parseInt(e.target.value, 10);
+        if (isNaN(val) || val < 5) val = 5;
+        if (val > 600) val = 600;
+        state.timers.defenseSeconds = val;
+        e.target.value = val;
+      });
+    }
+
+    // Nút tăng/giảm stepper [+] / [-]
+    btnStepTimers.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const timerType = btn.dataset.timer;
+        const action = btn.dataset.action;
+
+        if (timerType === 'night') {
+          let val = state.timers.nightRoleSeconds + (action === 'inc' ? 5 : -5);
+          val = Math.max(5, Math.min(180, val));
+          state.timers.nightRoleSeconds = val;
+          if (nightRoleTimerInput) nightRoleTimerInput.value = val;
+        } else if (timerType === 'day') {
+          let val = state.timers.dayDiscussionSeconds + (action === 'inc' ? 15 : -15);
+          val = Math.max(15, Math.min(1200, val));
+          state.timers.dayDiscussionSeconds = val;
+          state.discussionTotalSeconds = val;
+          if (dayDiscussionTimerInput) dayDiscussionTimerInput.value = val;
+        } else if (timerType === 'defense') {
+          let val = state.timers.defenseSeconds + (action === 'inc' ? 5 : -5);
+          val = Math.max(5, Math.min(300, val));
+          state.timers.defenseSeconds = val;
+          if (defenseTimerInput) defenseTimerInput.value = val;
+        }
+      });
+    });
+
+    // Nút khôi phục mặc định
+    if (resetDefaultTimersBtn) {
+      resetDefaultTimersBtn.addEventListener('click', () => {
+        state.timers.nightRoleSeconds = 15;
+        state.timers.dayDiscussionSeconds = 180;
+        state.timers.defenseSeconds = 60;
+        state.discussionTotalSeconds = 180;
+        if (nightRoleTimerInput) nightRoleTimerInput.value = 15;
+        if (dayDiscussionTimerInput) dayDiscussionTimerInput.value = 180;
+        if (defenseTimerInput) defenseTimerInput.value = 60;
+      });
+    }
+
+    // Nút mở đồng hồ biện hộ
+    if (openDefenseTimerBtn) {
+      openDefenseTimerBtn.addEventListener('click', () => {
+        openDefenseTimer(state.timers.defenseSeconds);
+      });
+    }
+
+    // Preset Biện hộ trong modal
+    if (presetDefenseBtn) {
+      presetDefenseBtn.addEventListener('click', () => {
+        presetTimeButtons.forEach(b => b.classList.remove('active'));
+        presetDefenseBtn.classList.add('active');
+        openDefenseTimer(state.timers.defenseSeconds);
+      });
+    }
   }
 
   /* ===================================================
@@ -1525,8 +1641,16 @@
   }
 
   function handleHostReceivedNightAction(actionData) {
-    const { role, targetId, witchHeal, witchPoisonTargetId, isDone } = actionData;
-    if (role === 'werewolf' && targetId) state.nightPicks.attackedPlayerId = targetId;
+    const { role, targetId, witchHeal, witchPoisonTargetId, isDone, playerId } = actionData;
+
+    if (role === 'werewolf') {
+      if (playerId && targetId) {
+        state.werewolfVotes[playerId] = targetId;
+      }
+      if (targetId) {
+        state.nightPicks.attackedPlayerId = targetId;
+      }
+    }
     if (role === 'guard' && targetId) state.nightPicks.protectedPlayerId = targetId;
     if (role === 'seer' && targetId) state.nightPicks.seerCheckedPlayerId = targetId;
     if (role === 'witch') {
@@ -1535,8 +1659,19 @@
     }
 
     // CHỈ KHI NGƯỜI CHƠI ĐÃ ẤN XÁC NHẬN (isDone === true) MỚI TÍNH LÀ CHỌN XONG ĐỂ KẾT THÚC SỚM!
-    if (isDone && state.activeNightRoleKey === role && typeof state.finishCurrentNightStep === 'function') {
-      state.finishCurrentNightStep();
+    if (isDone && state.activeNightRoleKey === role) {
+      if (role === 'werewolf') {
+        const aliveWolves = state.players.filter(p => p.role === 'werewolf' && p.isAlive);
+        state.werewolfConfirmDone = state.werewolfConfirmDone || {};
+        if (playerId) state.werewolfConfirmDone[playerId] = true;
+
+        const allDone = aliveWolves.every(w => state.werewolfConfirmDone[w.id]);
+        if (allDone && typeof state.finishCurrentNightStep === 'function') {
+          state.finishCurrentNightStep();
+        }
+      } else if (typeof state.finishCurrentNightStep === 'function') {
+        state.finishCurrentNightStep();
+      }
     }
   }
 
@@ -1952,12 +2087,19 @@
       seerCheckedPlayerId: null
     };
 
+    // Khởi tạo bình chọn Ma Sói cho đêm mới
+    state.werewolfVotes = {};
+    state.werewolfTiedVote = false;
+    state.werewolfConfirmDone = {};
+
+    const nightDuration = state.timers.nightRoleSeconds || 15;
+
     if (window.audioManager) {
       window.audioManager.startAmbient();
       ambientLabel.textContent = "Nhạc nền: BẬT";
     }
 
-    logGameEvent(`--- Bắt đầu chuỗi Đêm tự động thứ ${state.currentNight} ---`, 'night');
+    logGameEvent(`--- Bắt đầu chuỗi Đêm tự động thứ ${state.currentNight} (Mỗi chức năng: ${nightDuration}s) ---`, 'night');
 
     // BƯỚC 1: ĐI NGỦ
     await window.audioManager.speakRole('sleep');
@@ -1972,55 +2114,71 @@
     // BƯỚC 2: BẢO VỆ
     const hasGuardAlive = state.players.some(p => p.role === 'guard' && p.isAlive);
     if (hasGuardAlive) {
-      broadcastNightStepToClients('guard', { duration: 50, title: 'BẢO VỆ THỨC DẬY' });
-      await runNightRoleStep({
+      broadcastNightStepToClients('guard', { duration: nightDuration, title: 'BẢO VỆ THỨC DẬY' });
+      const guardRes = await runNightRoleStep({
         roleKey: 'guard',
         title: 'BẢO VỆ THỨC DẬY',
         icon: '🛡️',
         audioText: 'Bảo vệ ơi thức dậy. Bảo vệ muốn cứu ai đêm nay?',
         instruction: 'Bảo vệ hãy chạm vào người bạn muốn bảo vệ và ấn Xác nhận:',
-        duration: 50,
+        duration: nightDuration,
         onAction: (targetId) => {
           state.nightPicks.protectedPlayerId = targetId;
         }
       });
-      await window.audioManager.speakRole('guard_sleep');
+      if (!guardRes.timedOut) {
+        await window.audioManager.speakRole('guard_sleep');
+      }
       await delay(1500);
     }
 
     // BƯỚC 3: MA SÓI
     const hasWolfAlive = state.players.some(p => p.role === 'werewolf' && p.isAlive);
     if (hasWolfAlive) {
-      broadcastNightStepToClients('werewolf', { duration: 50, title: 'MA SÓI THỨC DẬY' });
-      await runNightRoleStep({
+      broadcastNightStepToClients('werewolf', { duration: nightDuration, title: 'MA SÓI THỨC DẬY' });
+      const wolfRes = await runNightRoleStep({
         roleKey: 'werewolf',
         title: 'MA SÓI THỨC DẬY',
         icon: '🐺',
         audioText: 'Ma sói ơi hãy thức dậy. Sói muốn giết ai đêm nay?',
         instruction: 'Ma Sói hãy cùng thống nhất chạm con mồi và ấn Xác nhận:',
-        duration: 50,
+        duration: nightDuration,
         onAction: (targetId) => {
-          state.nightPicks.attackedPlayerId = targetId;
+          if (targetId === 'tie') {
+            state.werewolfTiedVote = true;
+            state.nightPicks.attackedPlayerId = null;
+          } else {
+            state.werewolfTiedVote = false;
+            state.nightPicks.attackedPlayerId = targetId;
+          }
         }
       });
-      await window.audioManager.speakRole('werewolf_sleep');
+
+      // Phán quyết số phiếu vote của Bầy Sói (Xử lý hòa vote -> mất lượt)
+      resolveWerewolfVotes();
+
+      if (!wolfRes.timedOut) {
+        await window.audioManager.speakRole('werewolf_sleep');
+      }
       await delay(1500);
     }
 
     // BƯỚC 4: TIÊN TRI
     const hasSeerAlive = state.players.some(p => p.role === 'seer' && p.isAlive);
     if (hasSeerAlive) {
-      broadcastNightStepToClients('seer', { duration: 50, title: 'TIÊN TRI THỨC DẬY' });
-      await runNightRoleStep({
+      broadcastNightStepToClients('seer', { duration: nightDuration, title: 'TIÊN TRI THỨC DẬY' });
+      const seerRes = await runNightRoleStep({
         roleKey: 'seer',
         title: 'TIÊN TRI THỨC DẬY',
         icon: '🔮',
         audioText: 'Tiên tri ơi hãy thức dậy. Tiên tri muốn soi ai?',
         instruction: 'Tiên tri hãy chạm vào 1 người để soi danh tính và ấn Xác nhận:',
-        duration: 50,
+        duration: nightDuration,
         isSeer: true
       });
-      await window.audioManager.speakRole('seer_sleep');
+      if (!seerRes.timedOut) {
+        await window.audioManager.speakRole('seer_sleep');
+      }
       await delay(1500);
     }
 
@@ -2028,18 +2186,20 @@
     const hasWitchAlive = state.players.some(p => p.role === 'witch' && p.isAlive);
     if (hasWitchAlive) {
       const victim = state.players.find(p => p.id === state.nightPicks.attackedPlayerId);
-      broadcastNightStepToClients('witch', { duration: 50, title: 'PHÙ THỦY THỨC DẬY', victimName: victim ? victim.name : null });
+      broadcastNightStepToClients('witch', { duration: nightDuration, title: 'PHÙ THỦY THỨC DẬY', victimName: victim ? victim.name : null });
 
-      await runNightRoleStep({
+      const witchRes = await runNightRoleStep({
         roleKey: 'witch',
         title: 'PHÙ THỦY THỨC DẬY',
         icon: '🧪',
         audioText: 'Phù thủy ơi thức dậy.',
         instruction: 'Phù thủy hãy quyết định bình cứu hoặc độc và ấn Xác nhận:',
-        duration: 50,
+        duration: nightDuration,
         isWitch: true
       });
-      await window.audioManager.speakRole('witch_sleep');
+      if (!witchRes.timedOut) {
+        await window.audioManager.speakRole('witch_sleep');
+      }
       await delay(1500);
     }
 
@@ -2082,7 +2242,7 @@
         data: {
           activeRole: roleKey,
           stepTitle: options.title || '',
-          duration: options.duration || 50,
+          duration: options.duration || state.timers.nightRoleSeconds || 15,
           victimName: options.victimName || null,
           aliveTargets: aliveTargets,
           wolfMembers: wolfMembers,
@@ -2097,8 +2257,9 @@
     return new Promise((resolve) => {
       state.activeNightRoleKey = roleKey;
       state.nightStepCompletedEarly = false;
+      let isTimedOut = false;
 
-      // Nếu là chế độ Multi-Device Host, chỉ hiển thị thông báo tiến độ, máy con sẽ tự bấm!
+      // Hiển thị giao diện điều hành ban đêm
       nightRoleIcon.textContent = icon;
       nightRoleTitle.textContent = title;
       nightInstructionText.textContent = instruction;
@@ -2168,20 +2329,11 @@
               seerResultVerdict.textContent = isWolf ? 'PHE MA SÓI 🐺' : 'PHE DÂN LÀNG 🛡️';
             }
           }
-        });
+        }, roleKey);
       }
 
       let timeLeft = duration;
       nightStepTimer.textContent = `${timeLeft}s`;
-
-      const countdown = () => {
-        timeLeft -= 1;
-        nightStepTimer.textContent = `${timeLeft}s`;
-        if (timeLeft <= 0) cleanUpAndDone();
-      };
-
-      if (state.nightStepInterval) clearInterval(state.nightStepInterval);
-      state.nightStepInterval = setInterval(countdown, 1000);
 
       const cleanUpAndDone = () => {
         if (state.nightStepInterval) clearInterval(state.nightStepInterval);
@@ -2190,8 +2342,36 @@
         state.finishCurrentNightStep = null;
         nightStepTimer.style.color = "";
         nightConfirmDoneBtn.onclick = null;
-        resolve();
+        resolve({ timedOut: isTimedOut });
       };
+
+      const countdown = () => {
+        timeLeft -= 1;
+        nightStepTimer.textContent = `${timeLeft}s`;
+
+        // Khi đồng hồ đếm lùi về 5 giây cuối, phát âm thanh "Tích... tắc..."
+        if (timeLeft <= 5 && timeLeft > 0 && window.audioManager) {
+          window.audioManager.playTickSound(timeLeft % 2 === 1);
+        }
+
+        // Khi về 0: Chuông reo & Quản trò tự đọc câu lệnh gọi nhân vật đó đi ngủ
+        if (timeLeft <= 0) {
+          isTimedOut = true;
+          if (window.audioManager) {
+            window.audioManager.playBellRing();
+            const timeoutKey = `${roleKey}_timeout`;
+            if (window.audioManager.scripts[timeoutKey]) {
+              setTimeout(() => {
+                window.audioManager.speak(window.audioManager.scripts[timeoutKey]);
+              }, 300);
+            }
+          }
+          cleanUpAndDone();
+        }
+      };
+
+      if (state.nightStepInterval) clearInterval(state.nightStepInterval);
+      state.nightStepInterval = setInterval(countdown, 1000);
 
       state.finishCurrentNightStep = () => {
         if (state.nightStepCompletedEarly) return;
@@ -2204,19 +2384,22 @@
 
         nightStepTimer.textContent = "✅ Đã chọn xong!";
         nightStepTimer.style.color = "#4ade80";
-        nightInstructionText.textContent = `✅ Người chơi đã hoàn tất lựa chọn trên điện thoại. Đang chuyển tiếp...`;
+        nightInstructionText.textContent = `✅ Lựa chọn đã được xác nhận. Đang chuyển tiếp...`;
 
         setTimeout(() => {
           cleanUpAndDone();
         }, 700);
       };
 
-      nightConfirmDoneBtn.onclick = cleanUpAndDone;
+      nightConfirmDoneBtn.onclick = () => {
+        cleanUpAndDone();
+      };
+
       nightInteractiveOverlay.style.display = 'flex';
     });
   }
 
-  function renderTargetsIntoGrid(container, onSelect) {
+  function renderTargetsIntoGrid(container, onSelect, roleKey) {
     container.innerHTML = '';
     const alivePlayers = state.players.filter(p => p.isAlive);
 
@@ -2234,6 +2417,94 @@
 
       container.appendChild(btn);
     });
+
+    // Nếu là lượt Ma Sói: bổ sung nút Bất Đồng / Hòa Vote (Sói mất lượt)
+    if (roleKey === 'werewolf') {
+      const tieBtn = document.createElement('button');
+      tieBtn.type = 'button';
+      tieBtn.className = 'night-target-btn tie-btn';
+      tieBtn.style.borderColor = '#fbbf24';
+      tieBtn.style.color = '#fbbf24';
+      tieBtn.innerHTML = `<span>⚠️ Bất đồng / Hòa vote</span><small style="opacity: 0.8;">(Sói mất lượt)</small>`;
+
+      tieBtn.addEventListener('click', () => {
+        container.querySelectorAll('.night-target-btn').forEach(b => b.classList.remove('selected'));
+        tieBtn.classList.add('selected');
+        state.werewolfTiedVote = true;
+        state.nightPicks.attackedPlayerId = null;
+        if (onSelect) onSelect('tie');
+      });
+
+      container.appendChild(tieBtn);
+    }
+  }
+
+  /* ===================================================
+     PHÁN QUYẾT BÌNH CHỌN CỦA MA SÓI (XỬ LÝ HÒA VOTE)
+     =================================================== */
+  function resolveWerewolfVotes() {
+    const livingWolves = state.players.filter(p => p.role === 'werewolf' && p.isAlive);
+
+    // Không còn Sói nào sống
+    if (livingWolves.length === 0) {
+      state.nightPicks.attackedPlayerId = null;
+      state.werewolfTiedVote = false;
+      return;
+    }
+
+    // Chỉ có 1 Sói sống
+    if (livingWolves.length === 1) {
+      if (state.nightPicks.attackedPlayerId && !state.werewolfTiedVote) {
+        state.werewolfTiedVote = false;
+        const victim = state.players.find(p => p.id === state.nightPicks.attackedPlayerId);
+        logGameEvent(`🐺 [Ma Sói] Đã chọn cắn: ${victim ? victim.name : '#' + state.nightPicks.attackedPlayerId}`, 'night');
+      } else {
+        state.werewolfTiedVote = true;
+        state.nightPicks.attackedPlayerId = null;
+        logGameEvent(`🐺 [Ma Sói] Không chọn mục tiêu hoặc hết giờ. Sói bị mất lượt đêm nay!`, 'warning');
+      }
+      return;
+    }
+
+    // Bầy Sói (từ 2 con trở lên):
+    // Đếm số phiếu bầu cho từng mục tiêu
+    const voteCounts = {};
+    livingWolves.forEach(wolf => {
+      const targetId = state.werewolfVotes[wolf.id];
+      if (targetId && targetId !== 'tie') {
+        voteCounts[targetId] = (voteCounts[targetId] || 0) + 1;
+      }
+    });
+
+    // Nếu host bấm chọn thủ công trong single device mode
+    if (Object.keys(voteCounts).length === 0 && state.nightPicks.attackedPlayerId && !state.werewolfTiedVote) {
+      voteCounts[state.nightPicks.attackedPlayerId] = livingWolves.length;
+    }
+
+    let maxVotes = 0;
+    let topTargets = [];
+
+    for (const [targetId, count] of Object.entries(voteCounts)) {
+      if (count > maxVotes) {
+        maxVotes = count;
+        topTargets = [parseInt(targetId, 10)];
+      } else if (count === maxVotes) {
+        topTargets.push(parseInt(targetId, 10));
+      }
+    }
+
+    // QUY TẮC: Nếu các Ma Sói không thể thống nhất được mục tiêu (số vote hòa nhau hoặc hết giờ)
+    // thì đêm đó Sói sẽ bị mất lượt và không có ai bị cắn chết!
+    if (topTargets.length !== 1 || maxVotes === 0 || state.werewolfTiedVote) {
+      state.werewolfTiedVote = true;
+      state.nightPicks.attackedPlayerId = null;
+      logGameEvent(`⚠️ [Sói mất lượt] Các Ma Sói không thể thống nhất được mục tiêu (số vote hòa nhau hoặc hết giờ). Đêm nay Sói bị mất lượt, không ai bị cắn!`, 'warning');
+    } else {
+      state.werewolfTiedVote = false;
+      state.nightPicks.attackedPlayerId = topTargets[0];
+      const victim = state.players.find(p => p.id === topTargets[0]);
+      logGameEvent(`🐺 [Sói thống nhất] Bầy Sói đã thống nhất cắn ${victim ? victim.name : '#' + topTargets[0]} (${maxVotes} phiếu).`, 'night');
+    }
   }
 
   /* ===================================================
@@ -2297,14 +2568,27 @@
     }
 
     // 5. Hiển thị Banner Tổng kết sáng
-    renderMorningRecapBanner({ deadNames, protectedNames, healedNames });
+    renderMorningRecapBanner({ 
+      deadNames, 
+      protectedNames, 
+      healedNames, 
+      werewolfTiedVote: state.werewolfTiedVote 
+    });
 
     // 6. Quản trò đọc dõng dạc
     if (window.audioManager) {
-      window.audioManager.speakMorningResult({ deadNames, protectedNames, healedNames });
+      window.audioManager.speakMorningResult({ 
+        deadNames, 
+        protectedNames, 
+        healedNames, 
+        werewolfTiedVote: state.werewolfTiedVote 
+      });
     }
 
     // 7. Ghi nhật ký
+    if (state.werewolfTiedVote) {
+      logGameEvent(`[Sói mất lượt] Bầy Sói hòa vote hoặc hết giờ không thống nhất được, đêm qua không cắn ai!`, 'info');
+    }
     if (protectedNames.length > 0) {
       logGameEvent(`[Bảo vệ thành công] ${protectedNames.join(', ')} bị Sói tấn công nhưng đã được Bảo Vệ che chở!`, 'revive');
     }
@@ -2314,19 +2598,26 @@
     if (deadNames.length > 0) {
       logGameEvent(`[Hy sinh đêm qua] ${deadNames.join(', ')} đã rời cuộc chơi.`, 'death');
     }
-    if (deadNames.length === 0 && protectedNames.length === 0 && healedNames.length === 0) {
+    if (!state.werewolfTiedVote && deadNames.length === 0 && protectedNames.length === 0 && healedNames.length === 0) {
       logGameEvent(`[Đêm bình yên] Không có ai bị thương cả.`, 'info');
     }
 
-    // Tự động mở đồng hồ họp ban ngày sau 3 giây
+    // Tự động mở đồng hồ họp ban ngày theo cài đặt sau 3.5 giây
     setTimeout(() => {
-      openDiscussionTimer(state.discussionTotalSeconds);
-    }, 3200);
+      openDiscussionTimer(state.timers.dayDiscussionSeconds);
+    }, 3500);
   }
 
-  function renderMorningRecapBanner({ deadNames, protectedNames, healedNames }) {
+  function renderMorningRecapBanner({ deadNames, protectedNames, healedNames, werewolfTiedVote = false }) {
     morningRecapBanner.innerHTML = '';
     morningRecapBanner.style.display = 'flex';
+
+    if (werewolfTiedVote) {
+      const div = document.createElement('div');
+      div.className = 'recap-item wolf-tied';
+      div.innerHTML = `<span>🐺</span> <span>Đêm qua các <strong>Ma Sói không thể thống nhất mục tiêu</strong> (hòa phiếu vote hoặc hết giờ), nên Sói đã bị <strong>mất lượt</strong> và không cắn ai!</span>`;
+      morningRecapBanner.appendChild(div);
+    }
 
     if (protectedNames.length > 0) {
       const div = document.createElement('div');
@@ -2349,7 +2640,7 @@
       morningRecapBanner.appendChild(div);
     }
 
-    if (deadNames.length === 0 && protectedNames.length === 0 && healedNames.length === 0) {
+    if (!werewolfTiedVote && deadNames.length === 0 && protectedNames.length === 0 && healedNames.length === 0) {
       const div = document.createElement('div');
       div.className = 'recap-item peaceful';
       div.innerHTML = `<span>🕊️</span> <span>Đêm qua là một đêm thật bình yên, không có ai bị thương!</span>`;
@@ -2358,19 +2649,33 @@
   }
 
   /* ===================================================
-     ĐỒNG HỒ HỌP THẢO LUẬN BAN NGÀY
+     ĐỒNG HỒ HỌP THẢO LUẬN & ĐỒNG HỒ BIỆN HỘ BAN NGÀY
      =================================================== */
   function openDiscussionTimer(seconds) {
+    state.currentTimerMode = 'discussion';
+    state.discussionTotalSeconds = seconds || state.timers.dayDiscussionSeconds || 180;
     morningDiscussionModal.style.display = 'flex';
-    resetDiscussionTimer(seconds);
+    resetDiscussionTimer(state.discussionTotalSeconds);
     startDiscussionTimer();
+  }
+
+  function openDefenseTimer(seconds) {
+    state.currentTimerMode = 'defense';
+    state.discussionTotalSeconds = seconds || state.timers.defenseSeconds || 60;
+    morningDiscussionModal.style.display = 'flex';
+    resetDiscussionTimer(state.discussionTotalSeconds);
+    startDiscussionTimer();
+    if (window.audioManager) {
+      window.audioManager.speak("Bắt đầu thời gian biện hộ. Người chơi hãy trình bày lý lẽ để thuyết phục dân làng!");
+    }
+    logGameEvent(`Bắt đầu đếm ngược ${state.discussionTotalSeconds} giây biện hộ trước làng.`, 'info');
   }
 
   function resetDiscussionTimer(seconds) {
     state.discussionRemainingSeconds = seconds;
     updateClockDisplay();
     clockRingOuter.classList.remove('warning');
-    clockPhaseLabel.textContent = "ĐANG THẢO LUẬN";
+    clockPhaseLabel.textContent = state.currentTimerMode === 'defense' ? "THỜI GIAN BIỆN HỘ" : "ĐANG THẢO LUẬN";
   }
 
   function updateClockDisplay() {
@@ -2384,18 +2689,20 @@
         data: {
           remainingSeconds: state.discussionRemainingSeconds,
           totalSeconds: state.discussionTotalSeconds,
-          isRunning: state.isTimerRunning
+          isRunning: state.isTimerRunning,
+          mode: state.currentTimerMode
         }
       });
     }
 
-    if (state.discussionRemainingSeconds <= 10 && state.discussionRemainingSeconds > 0) {
+    // 5 giây cuối: báo động đỏ và phát âm thanh tích tắc
+    if (state.discussionRemainingSeconds <= 5 && state.discussionRemainingSeconds > 0) {
       clockRingOuter.classList.add('warning');
       clockPhaseLabel.textContent = "SẮP HẾT GIỜ!";
-      if (window.audioManager) window.audioManager.playTickSound(true);
+      if (window.audioManager) window.audioManager.playTickSound(state.discussionRemainingSeconds % 2 === 1);
     } else {
       clockRingOuter.classList.remove('warning');
-      clockPhaseLabel.textContent = "ĐANG THẢO LUẬN";
+      clockPhaseLabel.textContent = state.currentTimerMode === 'defense' ? "THỜI GIAN BIỆN HỘ" : "ĐANG THẢO LUẬN";
     }
   }
 
@@ -2410,12 +2717,21 @@
         state.discussionRemainingSeconds -= 1;
         updateClockDisplay();
 
+        // Khi về 0: Chuông reo (Bell Ring) và đọc thông báo hết giờ
         if (state.discussionRemainingSeconds === 0) {
           clearInterval(state.timerInterval);
           state.isTimerRunning = false;
-          clockPhaseLabel.textContent = "HẾT GIỜ TRANH LUẬN!";
+          clockPhaseLabel.textContent = state.currentTimerMode === 'defense' ? "HẾT GIỜ BIỆN HỘ!" : "HẾT GIỜ TRANH LUẬN!";
+
           if (window.audioManager) {
-            window.audioManager.speak("Đã hết giờ thảo luận ban ngày! Tất cả mọi người hãy bắt đầu biểu quyết bỏ phiếu treo cổ!");
+            window.audioManager.playBellRing();
+            const alertText = state.currentTimerMode === 'defense'
+              ? "Đã hết thời gian! Người chơi hãy dừng lời biện hộ để làng bắt đầu bỏ phiếu phán quyết!"
+              : "Đã hết thời gian! Dân làng hãy dừng thảo luận và bắt đầu biểu quyết bỏ phiếu treo cổ!";
+            
+            setTimeout(() => {
+              window.audioManager.speak(alertText);
+            }, 600);
           }
         }
       }
@@ -2445,7 +2761,8 @@
     if (state.timerInterval) clearInterval(state.timerInterval);
     state.isTimerRunning = false;
     morningDiscussionModal.style.display = 'none';
-    logGameEvent(`Kết thúc thời gian thảo luận ban ngày. Chuyển sang biểu quyết / đêm tiếp theo.`, 'info');
+    const phaseName = state.currentTimerMode === 'defense' ? 'biện hộ' : 'thảo luận ban ngày';
+    logGameEvent(`Kết thúc thời gian ${phaseName}. Chuyển sang biểu quyết / đêm tiếp theo.`, 'info');
   }
 
   function nextNight() {

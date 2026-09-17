@@ -36,12 +36,16 @@ class WerewolfAudioManager {
       sleep: "Màn đêm đã buông xuống, tất cả dân làng nhắm mắt đi ngủ.",
       guard: "Bảo vệ ơi thức dậy. Bảo vệ muốn cứu ai đêm nay?",
       guard_sleep: "Bảo vệ đã xong, bảo vệ nhắm mắt lại.",
+      guard_timeout: "Đã hết thời gian! Bảo vệ nhắm mắt lại.",
       werewolf: "Ma sói ơi hãy thức dậy. Sói muốn giết ai đêm nay?",
       werewolf_sleep: "Ma sói đã chọn xong, ma sói nhắm mắt lại.",
+      werewolf_timeout: "Đã hết thời gian! Ma sói nhắm mắt lại.",
       seer: "Tiên tri ơi hãy thức dậy. Tiên tri muốn soi ai?",
       seer_sleep: "Tiên tri đã soi xong, tiên tri nhắm mắt lại.",
+      seer_timeout: "Đã hết thời gian! Tiên tri nhắm mắt lại.",
       witch: "Phù thủy ơi thức dậy.",
       witch_sleep: "Phù thủy đã xong, phù thủy nhắm mắt lại.",
+      witch_timeout: "Đã hết thời gian! Phù thủy nhắm mắt lại.",
       hunter: "Thợ săn ơi thức dậy. Nếu đêm nay thợ săn bị hạ gục, thợ săn muốn bắn ai? ... Thợ săn nhắm mắt lại.",
       morning: "Trời sáng rồi, tất cả mọi người mở mắt ra."
     };
@@ -166,11 +170,16 @@ class WerewolfAudioManager {
   }
 
   /**
-   * ĐỌC KẾT QUẢ BUỔI SÁNG - CHI TIẾT CẢ KHI ĐƯỢC BẢO VỆ VÀ CỨU
+   * ĐỌC KẾT QUẢ BUỔI SÁNG - CHI TIẾT CẢ KHI ĐƯỢC BẢO VỆ, CỨU HOẶC SÓI HÒA VOTE MẤT LƯỢT
    */
-  speakMorningResult({ deadNames = [], protectedNames = [], healedNames = [] }) {
+  speakMorningResult({ deadNames = [], protectedNames = [], healedNames = [], werewolfTiedVote = false }) {
     let parts = [];
     parts.push("Trời sáng rồi, tất cả mọi người mở mắt ra!");
+
+    // 0. Thông báo nếu Sói hòa vote bất đồng dẫn đến mất lượt
+    if (werewolfTiedVote) {
+      parts.push("Đêm qua bầy Ma Sói đã bất đồng quan điểm và hòa số phiếu vote, nên Sói đã bị mất lượt và không thể cắn ai!");
+    }
 
     // 1. Thông báo nếu có người được Bảo vệ cứu sống
     if (protectedNames.length > 0) {
@@ -194,7 +203,7 @@ class WerewolfAudioManager {
     }
 
     // 4. Nếu đêm hoàn toàn bình yên
-    if (deadNames.length === 0 && protectedNames.length === 0 && healedNames.length === 0) {
+    if (!werewolfTiedVote && deadNames.length === 0 && protectedNames.length === 0 && healedNames.length === 0) {
       parts.push("Đêm qua là một đêm thật bình yên, không có ai bị thương cả!");
     }
 
@@ -436,25 +445,69 @@ class WerewolfAudioManager {
   }
 
   /**
-   * Phát âm thanh Tick / Cảnh báo cho Đồng hồ đếm ngược
+   * Phát âm thanh Tick / Tock cho 5 giây đếm ngược cuối
    */
-  playTickSound(isWarning = false) {
+  playTickSound(isHigh = false) {
     try {
       this.initAudioContext();
+      const now = this.audioCtx.currentTime;
       const osc = this.audioCtx.createOscillator();
       const gain = this.audioCtx.createGain();
 
-      osc.type = isWarning ? 'sawtooth' : 'sine';
-      osc.frequency.setValueAtTime(isWarning ? 880 : 520, this.audioCtx.currentTime);
+      // Âm thanh tích tắc rõ ràng, chuyển điệu giữa tích (cao) và tắc (trầm)
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(isHigh ? 950 : 650, now);
 
-      gain.gain.setValueAtTime(isWarning ? 0.2 : 0.08, this.audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
 
       osc.connect(gain);
       gain.connect(this.audioCtx.destination);
-      osc.start();
-      osc.stop(this.audioCtx.currentTime + 0.15);
+      osc.start(now);
+      osc.stop(now + 0.14);
     } catch (e){}
+  }
+
+  /**
+   * Phát tiếng chuông báo Hết giờ (Bell Ring) âm vang bằng Web Audio API
+   */
+  playBellRing() {
+    try {
+      this.initAudioContext();
+      const now = this.audioCtx.currentTime;
+
+      // Các họa âm của tiếng chuông kim loại ngân dài (587Hz D5, 1174Hz, 1760Hz)
+      const freqs = [587.33, 1174.66, 1760.0];
+      const gains = [0.35, 0.18, 0.08];
+
+      freqs.forEach((f, i) => {
+        const osc = this.audioCtx.createOscillator();
+        const gain = this.audioCtx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(f, now);
+
+        gain.gain.setValueAtTime(gains[i], now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.8);
+
+        osc.connect(gain);
+        gain.connect(this.audioCtx.destination);
+
+        osc.start(now);
+        osc.stop(now + 1.8);
+      });
+    } catch (e){}
+  }
+
+  /**
+   * Cảnh báo Hết giờ: Đánh chuông + Đọc lời thoại
+   */
+  async playTimeUpAlert(customText = "Đã hết thời gian!") {
+    this.playBellRing();
+    await new Promise(r => setTimeout(r, 600));
+    if (customText) {
+      await this.speak(customText);
+    }
   }
 }
 

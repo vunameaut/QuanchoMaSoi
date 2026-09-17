@@ -454,6 +454,123 @@ body {
 
 .counter-value { font-size: 1.15rem; font-weight: 700; min-width: 24px; text-align: center; }
 
+/* ===================================================
+   BƯỚC 3: CÀI ĐẶT THỜI GIAN (GAME TIMERS)
+   =================================================== */
+.timers-settings-card {
+  margin-top: 6px;
+}
+
+.timers-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.timer-setting-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  gap: 12px;
+  transition: all var(--transition-fast);
+}
+
+.timer-setting-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.night-timer-bg {
+  background: rgba(147, 51, 234, 0.2);
+  border: 1px solid rgba(147, 51, 234, 0.4);
+}
+
+.day-timer-bg {
+  background: rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.defense-timer-bg {
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.timer-info {
+  flex-grow: 1;
+}
+
+.timer-label {
+  display: block;
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.timer-hint {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.timer-stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.btn-step-timer {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: white;
+  font-size: 1.2rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.btn-step-timer:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.timer-input {
+  width: 54px;
+  background: transparent;
+  border: none;
+  color: #38bdf8;
+  font-size: 1.15rem;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+}
+
+.timer-input::-webkit-inner-spin-button,
+.timer-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.unit-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  user-select: none;
+}
+
 .validation-bar {
   background: rgba(0, 0, 0, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -685,10 +802,10 @@ body {
 
 .subtitle-text { font-size: 1.05rem; font-style: italic; }
 
-/* HÀNG NÚT CHÍNH: ĐÊM TỰ ĐỘNG & ĐỒNG HỒ HỌP */
+/* HÀNG NÚT CHÍNH: ĐÊM TỰ ĐỘNG, ĐỒNG HỒ THẢO LUẬN & ĐỒNG HỒ BIỆN HỘ */
 .main-action-buttons-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 14px;
   margin-bottom: 22px;
 }
@@ -725,9 +842,36 @@ body {
 
 .btn-daytime-timer:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(217, 119, 6, 0.65); }
 
-.btn-auto-night .btn-icon, .btn-daytime-timer .btn-icon { font-size: 2.2rem; }
-.btn-auto-night strong, .btn-daytime-timer strong { display: block; font-family: var(--font-heading); font-size: 1.15rem; }
-.btn-auto-night small, .btn-daytime-timer small { display: block; color: rgba(255, 255, 255, 0.85); font-size: 0.82rem; }
+.btn-defense-timer {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 60%, #1d4ed8 100%);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 6px 25px rgba(2, 132, 199, 0.45);
+  transition: all var(--transition-normal);
+}
+
+.btn-defense-timer:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(2, 132, 199, 0.65); }
+
+.btn-auto-night .btn-icon, .btn-daytime-timer .btn-icon, .btn-defense-timer .btn-icon { font-size: 2.2rem; }
+.btn-auto-night strong, .btn-daytime-timer strong, .btn-defense-timer strong { display: block; font-family: var(--font-heading); font-size: 1.15rem; }
+.btn-auto-night small, .btn-daytime-timer small, .btn-defense-timer small { display: block; color: rgba(255, 255, 255, 0.85); font-size: 0.82rem; }
+
+.btn-preset-defense {
+  background: rgba(2, 132, 199, 0.25) !important;
+  border-color: rgba(2, 132, 199, 0.6) !important;
+  color: #38bdf8 !important;
+}
+
+.btn-preset-defense:hover {
+  background: rgba(2, 132, 199, 0.45) !important;
+  color: #fff !important;
+}
 
 .manual-step-divider {
   display: flex;
@@ -803,6 +947,14 @@ body {
   color: #fb7185;
   background: rgba(244, 63, 94, 0.12);
   border: 1px solid rgba(244, 63, 94, 0.3);
+  padding: 12px 18px;
+  border-radius: var(--radius-sm);
+}
+
+.recap-item.wolf-tied {
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
   padding: 12px 18px;
   border-radius: var(--radius-sm);
 }

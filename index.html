@@ -177,6 +177,61 @@
           </div>
         </div>
 
+        <!-- BƯỚC 3: CÀI ĐẶT THỜI GIAN (GAME TIMERS) -->
+        <div class="glass-card timers-settings-card">
+          <div class="roles-header-row">
+            <h2 class="section-title mb-0">
+              <span class="step-num">3</span> Cài Đặt Thời Gian (Game Timers)
+            </h2>
+            <button type="button" class="btn-text-action" id="resetDefaultTimersBtn">🔄 Mặc định</button>
+          </div>
+          <p class="section-desc">Tùy chỉnh thời gian cho các chức năng ban đêm và các giai đoạn tranh luận (tính bằng giây).</p>
+
+          <div class="timers-settings-grid">
+            <div class="timer-setting-item">
+              <div class="timer-icon-box night-timer-bg">🌙</div>
+              <div class="timer-info">
+                <label for="nightRoleTimerInput" class="timer-label">Chức năng ban đêm</label>
+                <span class="timer-hint">Thời gian cho mỗi vai trò thức dậy</span>
+              </div>
+              <div class="timer-stepper">
+                <button type="button" class="btn-step-timer" data-timer="night" data-action="dec">-</button>
+                <input type="number" id="nightRoleTimerInput" min="5" max="120" step="5" value="15" class="timer-input">
+                <span class="unit-label">giây</span>
+                <button type="button" class="btn-step-timer" data-timer="night" data-action="inc">+</button>
+              </div>
+            </div>
+
+            <div class="timer-setting-item">
+              <div class="timer-icon-box day-timer-bg">☀️</div>
+              <div class="timer-info">
+                <label for="dayDiscussionTimerInput" class="timer-label">Thảo luận ban ngày</label>
+                <span class="timer-hint">Thời gian họp dân làng bàn luận (3 phút)</span>
+              </div>
+              <div class="timer-stepper">
+                <button type="button" class="btn-step-timer" data-timer="day" data-action="dec">-</button>
+                <input type="number" id="dayDiscussionTimerInput" min="30" max="600" step="15" value="180" class="timer-input">
+                <span class="unit-label">giây</span>
+                <button type="button" class="btn-step-timer" data-timer="day" data-action="inc">+</button>
+              </div>
+            </div>
+
+            <div class="timer-setting-item">
+              <div class="timer-icon-box defense-timer-bg">🛡️</div>
+              <div class="timer-info">
+                <label for="defenseTimerInput" class="timer-label">Thời gian biện hộ</label>
+                <span class="timer-hint">Dành cho người bị đưa lên giàn biện hộ</span>
+              </div>
+              <div class="timer-stepper">
+                <button type="button" class="btn-step-timer" data-timer="defense" data-action="dec">-</button>
+                <input type="number" id="defenseTimerInput" min="10" max="180" step="5" value="60" class="timer-input">
+                <span class="unit-label">giây</span>
+                <button type="button" class="btn-step-timer" data-timer="defense" data-action="inc">+</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Bộ đếm tổng và ràng buộc -->
         <div class="validation-bar">
           <div class="summary-stat">
@@ -766,7 +821,7 @@
           </div>
         </div>
 
-        <!-- Nút kích hoạt ĐÊM TỰ ĐỘNG & ĐỒNG HỒ THẢO LUẬN -->
+        <!-- Nút kích hoạt ĐÊM TỰ ĐỘNG, ĐỒNG HỒ THẢO LUẬN & ĐỒNG HỒ BIỆN HỘ -->
         <div class="main-action-buttons-row">
           <button type="button" id="startAutoNightBtn" class="btn-auto-night">
             <span class="btn-icon">🌙</span>
@@ -779,8 +834,16 @@
           <button type="button" id="openMorningTimerBtn" class="btn-daytime-timer">
             <span class="btn-icon">⏱️</span>
             <div class="btn-text-content">
-              <strong>ĐỒNG HỒ HỌP BAN NGÀY</strong>
-              <small>Hiển thị đồng hồ đếm ngược biểu quyết toàn màn hình</small>
+              <strong>ĐỒNG HỒ THẢO LUẬN</strong>
+              <small>Đếm ngược họp làng toàn màn hình</small>
+            </div>
+          </button>
+
+          <button type="button" id="openDefenseTimerBtn" class="btn-defense-timer">
+            <span class="btn-icon">🛡️</span>
+            <div class="btn-text-content">
+              <strong>ĐỒNG HỒ BIỆN HỘ</strong>
+              <small>Đếm lùi biện hộ trước khi phán quyết</small>
             </div>
           </button>
         </div>
@@ -975,6 +1038,7 @@
           <button type="button" class="btn-preset-time active" data-minutes="3">3 Phút</button>
           <button type="button" class="btn-preset-time" data-minutes="5">5 Phút</button>
           <button type="button" class="btn-preset-time btn-add-time" id="add30SecBtn">+30 Giây</button>
+          <button type="button" class="btn-preset-time btn-preset-defense" id="presetDefenseBtn">🛡️ Biện Hộ (60s)</button>
         </div>
 
         <div class="timer-actions-row">
